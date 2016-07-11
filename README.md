@@ -1,6 +1,18 @@
-## Synopsis
+## Playground Tester
 
-A simple test driven development (TDD) helper file for Xcode playgrounds.
+A simple test driven development (TDD) helper file for Xcode playgrounds that utilizes the console output for reporting.
+
+### Abilities
+- Add tests using `addTest()`
+- Focus test(s) using `faddTest()`
+- Mark test(s) as pending using `xaddTest()`
+- Run the playground and see the results in the console window (COMMAND + SHIFT + C)
+
+### Note
+- Playground seem to work better if you turn off the auto run feature
+	- Turn off by moving the mouse over the little blue play button in the bottom left of the window, click and hold until a menu shows up, and choose "Manually Run"
+- If you have "Manually Run" turned on in the Xcode playground, it is suggested to add a keyboard shortcut to "Run Playground"
+	- I found (CONTROL + R) to be a good choice as it is the closest thing to (COMMAND + R) without running into other shortcuts. Also Xcode doesn't allow you to use (COMMAND + R).
 
 ## Code Example
 
@@ -12,16 +24,10 @@ class FizzBuzz {
         var result = ["Zero"]
         
         for answer in 1...max {
-            let isDivisbleByThree = answer % 3 == 0
-            let isDevisbleByFive = answer % 5 == 0
-            
-            if isDivisbleByThree && isDevisbleByFive {
-                result.append("FizzBuzz")
-            }
-            else if isDivisbleByThree {
+            if answer % 3 == 0 {
                 result.append("Fizz")
             }
-            else if isDevisbleByFive {
+            else if answer % 5 == 0 {
                 result.append("Buzz")
             }
             else {
@@ -32,10 +38,10 @@ class FizzBuzz {
     }
 }
 
-// create the tester
+// Create the tester object
 let myTester = RIVTester()
 
-// make your tests
+// Make your tests
 let subject = FizzBuzz()
 
 myTester.addTest(description: "amount of answers", failureMessage: "resulting array count should equal one more than the number passed in") {
@@ -64,19 +70,37 @@ myTester.addTest(description: "numbers divisible by 3 and 5", failureMessage: "s
     return result[15] == "FizzBuzz" && result[30] == "FizzBuzz"
 }
 
-// execute the tests
+// Execute the tests
 myTester.executeTests()
 ```
 
+### Example Console Output
+
+```
+. Test 0: amount of answers
+. Test 1: index zero
+. Test 2: normal numbers
+. Test 3: numbers divisible by 3
+. Test 4: numbers divisible by 5
+F Test 5: numbers divisible by 3 and 5
+
+Executed 6 test(s) | 5 succeeded | 1 failed | 0 pending
+```
+
+### Key
+ - "." : Test succeeded
+ - "F" : Test failed
+ - ">" : Test marked as pending
+
 ## Motivation
 
-Are building something complicated enough that you might make a mistake? Are you building it in an Xcode playground? Then ensure you don't break what you've built by testing it (or better yet through the practice of TDD) using this easy to drop in file that takes the tediousness out of testing in a playground
+Are you building something complicated enough that you might make a mistake? Are you building it in an Xcode playground? Then ensure you don't break what you've built by testing it (or better yet through the practice of TDD!). Using this easy to drop in file that takes the tediousness out of testing in a playground.
 
 ## Installation
 
 - Download this file
 - Open you Xcode playground
-- Open the project navigator (CMD + 1)
+- Open the project navigator (COMMAND + 1)
 - Select the 'Sources' folder
 - 'Add files to "Sourcees"...' (CMA + OPT + A)
 - Find and "Add" the downloaded file
