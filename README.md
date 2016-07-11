@@ -11,7 +11,7 @@ A simple test driven development (TDD) helper file for Xcode playgrounds that ut
 ### Note
 - Playgrounds seem to work better if you turn off the auto run feature
 	- Turn off by moving the mouse over the little blue play button in the bottom left of the window, click and hold until a menu shows up, and choose "Manually Run"
-- If you have "Manually Run" turned on in the Xcode playground, it is suggested to add a keyboard shortcut to "Run Playground"
+- If you have "Manually Run" turned on in the Xcode playground, I recommend adding a keyboard shortcut to "Run Playground"
 	- I found (CONTROL + R) to be a good choice as it is the closest thing to (COMMAND + R) without running into other shortcuts. Also Xcode doesn't allow you to use (COMMAND + R).
 
 ## Code Example
@@ -98,13 +98,13 @@ Are you building something complicated enough that you might make a mistake? Are
 
 ## Installation
 
-- Download this file
-- Open you Xcode playground
+- Download the provided RIVTester.swift
+- Open an Xcode playground
 - Open the project navigator (COMMAND + 1)
-- Select the 'Sources' folder
+- Select the 'Sources' folder <-- This is required
 - 'Add files to "Sourcees"...' (CMA + OPT + A)
-- Find and "Add" the downloaded file
-- Start testing
+- Find and "Add" RIVTester.swift
+- Start Testing!
 
 ## Contributors
 
