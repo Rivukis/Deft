@@ -9,7 +9,7 @@ A simple test driven development (TDD) helper file for Xcode playgrounds that ut
 - Run the playground and see the results in the console window (COMMAND + SHIFT + C)
 
 ### Note
-- Playground seem to work better if you turn off the auto run feature
+- Playgrounds seem to work better if you turn off the auto run feature
 	- Turn off by moving the mouse over the little blue play button in the bottom left of the window, click and hold until a menu shows up, and choose "Manually Run"
 - If you have "Manually Run" turned on in the Xcode playground, it is suggested to add a keyboard shortcut to "Run Playground"
 	- I found (CONTROL + R) to be a good choice as it is the closest thing to (COMMAND + R) without running into other shortcuts. Also Xcode doesn't allow you to use (COMMAND + R).
