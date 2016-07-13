@@ -22,7 +22,7 @@ public class RIVTester {
     private struct RIVTest {
         let description : String
         let executable : () -> Bool
-        let failureMessage : String
+        let expectedBehavior : String
         let pending : Bool
         let focused : Bool
     }
@@ -38,25 +38,25 @@ public class RIVTester {
      Adds a test.
      
      - Parameter description:       The description to output if the test is executed.
-     - Parameter failureMessage:    The message to output if the test is executed and fails.
+     - Parameter expectedBehavior:  The message to output if the test is executed and fails.
      - Parameter block:             The block to determine if the test succeeds or fails.
      */
-    public func addTest(description description: String, failureMessage: String, _ executable: () -> Bool) {
-        tests.append(RIVTest(description: description, executable: executable, failureMessage: failureMessage, pending: false, focused: false))
+    public func addTest(description: String, expectedBehavior: String, _ executable: () -> Bool) {
+        tests.append(RIVTest(description: description, executable: executable, expectedBehavior: expectedBehavior, pending: false, focused: false))
     }
     
     /**
      Adds a focused test.
      
-     - Important: If at one or more focused tests are added, all non-focused tests will be treated as pending.
+     - Important: If one or more focused tests are added, all non-focused tests will be treated as pending.
      
      - Parameter description:       The description to output if the test is executed.
-     - Parameter failureMessage:    The message to output if the test is executed and fails.
+     - Parameter expectedBehavior:  The message to output if the test is executed and fails.
      - Parameter block:             The block to determine if the test succeeds or fails.
      */
-    public func faddTest(description description: String, failureMessage: String, _ executable: () -> Bool) {
+    public func faddTest(description: String, expectedBehavior: String, _ executable: () -> Bool) {
         hasFocusedTest = true
-        tests.append(RIVTest(description: description, executable: executable, failureMessage: failureMessage, pending: false, focused: true))
+        tests.append(RIVTest(description: description, executable: executable, expectedBehavior: expectedBehavior, pending: false, focused: true))
     }
     
     /**
@@ -66,11 +66,11 @@ public class RIVTester {
      - Note: This has the same function signature as its counterparts for ease of use.
      
      - Parameter description:       The description to output if the test is executed.
-     - Parameter failureMessage:    The message to output if the test is executed and fails.
+     - Parameter expectedBehavior:  The message to output if the test is executed and fails.
      - Parameter block:             The block to determine if the test succeeds or fails.
      */
-    public func xaddTest(description description: String, failureMessage: String, _ executable: () -> Bool) {
-        tests.append(RIVTest(description: description, executable: executable, failureMessage: failureMessage, pending: true, focused: false))
+    public func xaddTest(description: String, expectedBehavior: String, _ executable: () -> Bool) {
+        tests.append(RIVTest(description: description, executable: executable, expectedBehavior: expectedBehavior, pending: true, focused: false))
     }
     
     /**
@@ -119,7 +119,7 @@ public class RIVTester {
             return ". Test \(number): \(test.description)\n"
         }
         else {
-            return "F Test \(number): \(test.description) -> \(test.failureMessage)\n"
+            return "F Test \(number): \(test.description) -> \(test.expectedBehavior)\n"
         }
     }
 }
