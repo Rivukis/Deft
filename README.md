@@ -20,9 +20,9 @@ A simple test driven development (TDD) helper file for Xcode playgrounds that ut
 class FizzBuzz {
     func gameUpTo(max: Int) -> [String] {
         precondition(max > 0, "max must be more than zero")
-        
+
         var result = ["Zero"]
-        
+
         for answer in 1...max {
             if answer % 3 == 0 {
                 result.append("Fizz")
@@ -34,38 +34,38 @@ class FizzBuzz {
                 result.append("\(answer)")
             }
         }
+        
         return result
     }
 }
 
-// Create the tester object
+// Create the tester
 let myTester = RIVTester()
 
 // Make your tests
 let subject = FizzBuzz()
 
-myTester.addTest(description: "amount of answers", failureMessage: "resulting array count should equal one more than the number passed in") {
+myTester.addTest("amount of answers", expectedBehavior: "resulting array count should equal one more than the number passed in") {
     let result = subject.gameUpTo(10)
     return result.count == 11
 }
-myTester.addTest(description: "index zero", failureMessage: "should put 'Zero' for the first index") {
+myTester.addTest("index zero", expectedBehavior: "should put 'Zero' for the first index") {
     let result = subject.gameUpTo(1)
     return result[0] == "Zero"
 }
-myTester.addTest(description: "normal numbers", failureMessage: "should return '1' and '2' for the first two answers") {
+myTester.addTest("normal numbers", expectedBehavior: "should return '1' and '2' for the first two answers") {
     let result = subject.gameUpTo(2)
-    
     return result[1] == "1" && result[2] == "2"
 }
-myTester.addTest(description: "numbers divisible by 3", failureMessage: "should return Fizz for '3' and '6'") {
+myTester.addTest("numbers divisible by 3", expectedBehavior: "should return Fizz for '3' and '6'") {
     let result = subject.gameUpTo(6)
     return result[3] == "Fizz" && result[6] == "Fizz"
 }
-myTester.addTest(description: "numbers divisible by 5", failureMessage: "should return Buzz for '5' and '10'") {
+myTester.addTest("numbers divisible by 5", expectedBehavior: "should return Buzz for '5' and '10'") {
     let result = subject.gameUpTo(10)
     return result[5] == "Buzz" && result[10] == "Buzz"
 }
-myTester.addTest(description: "numbers divisible by 3 and 5", failureMessage: "should return FizzBuzz for '15' and '30'") {
+myTester.addTest("numbers divisible by 3 and 5", expectedBehavior: "should return FizzBuzz for '15' and '30'") {
     let result = subject.gameUpTo(30)
     return result[15] == "FizzBuzz" && result[30] == "FizzBuzz"
 }
