@@ -1,6 +1,6 @@
-## Playground Tester
+## Deft
 
-A simple test driven development (TDD) helper file for Xcode playgrounds that utilizes the console output for reporting.
+A simple testing framework for Xcode playgrounds that utilizes the console output for reporting.
 
 ### Abilities
 - Add tests using `addTest()`
