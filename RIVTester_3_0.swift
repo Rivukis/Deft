@@ -98,7 +98,7 @@ public class RIVTester {
         var pending = 0
         
         for (index, test) in tests.enumerated() {
-            result += testOutput(test: test, number: index, succeeded: &succeeded, pending: &pending)
+            result += testOutput(test: test, number: index + 1, succeeded: &succeeded, pending: &pending)
         }
         
         return result + endLine(totalCount: self.tests.count, succeeded: succeeded, pending: pending)
