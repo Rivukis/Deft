@@ -477,7 +477,7 @@ private func execute(scope: BDDScope, body: @escaping (BDDScope) -> Void) {
 
 private func endLine(totalCount: Int, succeeded: Int, pending: Int) -> String {
     let testText = totalCount == 1 ? "test" : "tests"
-    return "\n Executed \(totalCount) \(testText)\n |- \(succeeded) succeeded\n |- \(totalCount - succeeded - pending) failed\n |- \(pending) pending"
+    return "\nExecuted \(totalCount) \(testText)\n |- \(succeeded) succeeded\n |- \(totalCount - succeeded - pending) failed\n |- \(pending) pending"
 }
 
 private func format(_ string: String, level: Int, firstCharacter: String) -> String {
