@@ -38,7 +38,7 @@ fileprivate struct Constant {
  - Parameter subjectDescription: This is the description of the thing you are testing.
  - Parameter body: The `describe` scope to be executed during testing. The `RIVScope` parameter is used for adding new `describe`s, `context`s, `it`s, `beforeEach`s, `afterEach`s, and/or a `subjectAction`.
  */
-func test(_ subjectDescription: String, _ body: @escaping (BDDScope) -> Void) {
+public func test(_ subjectDescription: String, _ body: @escaping (BDDScope) -> Void) {
     let scope = BDDScope(type: .describe, description: subjectDescription, body: body, focused: false, pending: false)
     execute(scope: scope, body: body)
 }
@@ -61,7 +61,7 @@ func test(_ subjectDescription: String, _ body: @escaping (BDDScope) -> Void) {
  - Parameter body: The `describe` scope to be executed during testing. The `RIVScope` parameter is used for adding new `describe`s, `context`s, `it`s, `beforeEach`s, `afterEach`s, and/or a `subjectAction`.
  
  */
-func xtest(_ subjectDescription: String, _ body: @escaping (BDDScope) -> Void) {
+public func xtest(_ subjectDescription: String, _ body: @escaping (BDDScope) -> Void) {
     let scope = BDDScope(type: .describe, description: subjectDescription, body: body, focused: false, pending: true)
     execute(scope: scope, body: body)
 }
@@ -76,7 +76,7 @@ func xtest(_ subjectDescription: String, _ body: @escaping (BDDScope) -> Void) {
  - Parameter scope: Pass in the `RIVScope` that is provided by the enclosing test scope.
  - Parameter body: The `beforeEach` scope to be executed during testing.
  */
-func beforeEach(_ scope: BDDScope, _ body: @escaping () -> Void) {
+public func beforeEach(_ scope: BDDScope, _ body: @escaping () -> Void) {
     guard scope.beforeEach == nil else {
         fatalError(Constant.ErrorMessage.tooManyBeforeEachs)
     }
@@ -94,7 +94,7 @@ func beforeEach(_ scope: BDDScope, _ body: @escaping () -> Void) {
  - Parameter scope: Pass in the `RIVScope` that is provided by the enclosing test scope.
  - Parameter body: The `subjectAction` scope to be executed during testing.
  */
-func subjectAction(_ scope: BDDScope, _ body: @escaping () -> Void) {
+public func subjectAction(_ scope: BDDScope, _ body: @escaping () -> Void) {
     guard scope.subjectAction == nil else {
         fatalError(Constant.ErrorMessage.tooManySubjectActions)
     }
@@ -112,7 +112,7 @@ func subjectAction(_ scope: BDDScope, _ body: @escaping () -> Void) {
  - Parameter scope: Pass in the `RIVScope` that is provided by the enclosing test scope.
  - Parameter body: The `afterEach` scope to be executed during testing.
  */
-func afterEach(_ scope: BDDScope, _ body: @escaping () -> Void) {
+public func afterEach(_ scope: BDDScope, _ body: @escaping () -> Void) {
     guard scope.afterEach == nil else {
         fatalError(Constant.ErrorMessage.tooManyAfterEachs)
     }
@@ -129,7 +129,7 @@ func afterEach(_ scope: BDDScope, _ body: @escaping () -> Void) {
  - Parameter scope: Pass in the `RIVScope` that is provided by the enclosing test scope.
  - Parameter body: The `describe` scope to be executed during testing. The `RIVScope` parameter is used for adding new `describe`s, `context`s, `it`s, `beforeEach`s, `afterEach`s, and/or a `subjectAction`.
  */
-func describe(_ description: String, _ scope: BDDScope, _ body:  @escaping (BDDScope) -> Void) {
+public func describe(_ description: String, _ scope: BDDScope, _ body:  @escaping (BDDScope) -> Void) {
     scope.subScopes.append(BDDScope(type: .describe, description: description, body: body, focused: false, pending: false))
 }
 
@@ -144,7 +144,7 @@ func describe(_ description: String, _ scope: BDDScope, _ body:  @escaping (BDDS
  - Parameter scope: Pass in the `RIVScope` that is provided by the enclosing test scope.
  - Parameter body: The `describe` scope to be executed during testing. The `RIVScope` parameter is used for adding new `describe`s, `context`s, `it`s, `beforeEach`s, `afterEach`s, and/or a `subjectAction`.
  */
-func fdescribe(_ description: String, _ scope: BDDScope, _ body:  @escaping (BDDScope) -> Void) {
+public func fdescribe(_ description: String, _ scope: BDDScope, _ body:  @escaping (BDDScope) -> Void) {
     scope.subScopes.append(BDDScope(type: .describe, description: description, body: body, focused: true, pending: false))
 }
 
@@ -159,7 +159,7 @@ func fdescribe(_ description: String, _ scope: BDDScope, _ body:  @escaping (BDD
  - Parameter scope: Pass in the `RIVScope` that is provided by the enclosing test scope.
  - Parameter body: The `describe` scope to be executed during testing. The `RIVScope` parameter is used for adding new `describe`s, `context`s, `it`s, `beforeEach`s, `afterEach`s, and/or a `subjectAction`.
  */
-func xdescribe(_ description: String, _ scope: BDDScope, _ body:  @escaping (BDDScope) -> Void) {
+public func xdescribe(_ description: String, _ scope: BDDScope, _ body:  @escaping (BDDScope) -> Void) {
     scope.subScopes.append(BDDScope(type: .describe, description: description, body: body, focused: false, pending: true))
 }
 
@@ -172,7 +172,7 @@ func xdescribe(_ description: String, _ scope: BDDScope, _ body:  @escaping (BDD
  - Parameter scope: Pass in the `RIVScope` that is provided by the enclosing test scope.
  - Parameter body: The `context` scope to be executed during testing. The `RIVScope` parameter is used for adding new `describe`s, `context`s, `it`s, `beforeEach`s, `afterEach`s, and/or a `subjectAction`.
  */
-func context(_ description: String, _ scope: BDDScope, _ body:  @escaping (BDDScope) -> Void) {
+public func context(_ description: String, _ scope: BDDScope, _ body:  @escaping (BDDScope) -> Void) {
     scope.subScopes.append(BDDScope(type: .context, description: description, body: body, focused: false, pending: false))
 }
 
@@ -187,7 +187,7 @@ func context(_ description: String, _ scope: BDDScope, _ body:  @escaping (BDDSc
  - Parameter scope: Pass in the `RIVScope` that is provided by the enclosing test scope.
  - Parameter body: The `context` scope to be executed during testing. The `RIVScope` parameter is used for adding new `describe`s, `context`s, `it`s, `beforeEach`s, `afterEach`s, and/or a `subjectAction`.
  */
-func fcontext(_ description: String, _ scope: BDDScope, _ body:  @escaping (BDDScope) -> Void) {
+public func fcontext(_ description: String, _ scope: BDDScope, _ body:  @escaping (BDDScope) -> Void) {
     scope.subScopes.append(BDDScope(type: .context,
                                     description: description,
                                     body: body,
@@ -206,7 +206,7 @@ func fcontext(_ description: String, _ scope: BDDScope, _ body:  @escaping (BDDS
  - Parameter scope: Pass in the `RIVScope` that is provided by the enclosing test scope.
  - Parameter body: The `context` scope to be executed during testing. The `RIVScope` parameter is used for adding new `describe`s, `context`s, `it`s, `beforeEach`s, `afterEach`s, and/or a `subjectAction`.
  */
-func xcontext(_ description: String, _ scope: BDDScope, _ body:  @escaping (BDDScope) -> Void) {
+public func xcontext(_ description: String, _ scope: BDDScope, _ body:  @escaping (BDDScope) -> Void) {
     scope.subScopes.append(BDDScope(type: .context,
                                     description: description,
                                     body: body,
@@ -222,7 +222,7 @@ func xcontext(_ description: String, _ scope: BDDScope, _ body:  @escaping (BDDS
  - Parameter scope: Pass in the `RIVScope` that is provided by the enclosing test scope.
  - Parameter body: The `it` scope to be executed during testing. The boolean return value is the determination for a passing or failing test (true for success, false for failure).
  */
-func it(_ description: String, _ scope: BDDScope, _ body:  @escaping () -> Bool) {
+public func it(_ description: String, _ scope: BDDScope, _ body:  @escaping () -> Bool) {
     scope.its.append(BDDIt(description: description,
                            body: body,
                            focused: false,
@@ -240,7 +240,7 @@ func it(_ description: String, _ scope: BDDScope, _ body:  @escaping () -> Bool)
  - Parameter scope: Pass in the `RIVScope` that is provided by the enclosing test scope.
  - Parameter body: The `it` scope to be executed during testing. The boolean return value is the determination for a passing or failing test (true for success, false for failure).
  */
-func fit(_ description: String, _ scope: BDDScope, _ body:  @escaping () -> Bool) {
+public func fit(_ description: String, _ scope: BDDScope, _ body:  @escaping () -> Bool) {
     scope.its.append(BDDIt(description: description,
                            body: body,
                            focused: true,
@@ -258,7 +258,7 @@ func fit(_ description: String, _ scope: BDDScope, _ body:  @escaping () -> Bool
  - Parameter scope: Pass in the `RIVScope` that is provided by the enclosing test scope.
  - Parameter body: The `it` scope to be executed during testing. The boolean return value is the determination for a passing or failing test (true for success, false for failure).
  */
-func xit(_ description: String, _ scope: BDDScope, _ body:  @escaping () -> Bool) {
+public func xit(_ description: String, _ scope: BDDScope, _ body:  @escaping () -> Bool) {
     scope.its.append(BDDIt(description: description,
                            body: body,
                            focused: false,
