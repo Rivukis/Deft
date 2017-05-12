@@ -1,6 +1,4 @@
 
-// TODO: fix bug where focus doesn't work if there are no `it`s in the scope
-
 private struct Constant {
     static let levelSpace = "   "
     static let emptyTitle = "" // "(no helpful text provided)"
@@ -241,7 +239,7 @@ private class Scope: TrackedScope {
         } else {
             let subScopeHasFocus = subScopes.reduce(false) { $0 || $1.hasFocus }
             let itHasFocus = its.reduce(false) { $0 || $1.actingFocused }
-            return subScopeHasFocus || itHasFocus
+            return subScopeHasFocus || itHasFocus || actingFocused
         }
     }
 
