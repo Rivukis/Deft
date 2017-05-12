@@ -1,6 +1,5 @@
 
 // TODO: fix bug where focus doesn't work if there are no `it`s in the scope
-// TODO: should fatal error when `scope` is inside an `it`
 
 private struct Constant {
     static let levelSpace = "   "
@@ -8,7 +7,8 @@ private struct Constant {
     static let nilGroupKey = "_____"
 
     struct ErrorMessage {
-        static let tooManySubjectActions = "only one \"subjectAction()\" per `it`"
+        static let tooManySubjectActions = "Only one \"subjectAction()\" per `it`."
+        static let newScopesWhileExecuting = "Tried to add a scope during a test. This is probably caused be a test block (describe, it, beforeEach, etc.) is defined inside an `it` block."
     }
 
     struct OutPutPrefix {
@@ -322,6 +322,8 @@ private class TestScope: TrackedScope {
     private let tracker: Tracker
     private let rootScope: Scope
 
+    private var isExecuting = false
+
     init(title: String, closure: () -> Void, mark: Mark) {
         rootScope = Scope(type: .topLevel, title: title, mark: mark)
         self.tracker = Tracker(rootScope: rootScope)
@@ -332,22 +334,35 @@ private class TestScope: TrackedScope {
     }
 
     func intake(_ scope: Scope, closure: () -> Void) {
+        ensureNotExecuting()
         tracker.intake(scope, closure: closure)
     }
 
     func intake(_ step: Step) {
+        ensureNotExecuting()
         tracker.intake(step)
     }
 
     func intake(_ it: It) {
+        ensureNotExecuting()
         tracker.intake(it)
     }
 
     func execute() {
+        isExecuting = true
         rootScope.process(underFocus: false, underPending: false)
         let result = Scope.execute([rootScope], isSomethingFocused: rootScope.hasFocus)
         let endline = endLine(totalCount: result.total, succeeded: result.succeeded, pending: result.pending)
         print(result.description + endline)
+        isExecuting = false
+    }
+
+    // MARK: Helper
+
+    private func ensureNotExecuting() {
+        guard !isExecuting else {
+            fatalError(Constant.ErrorMessage.newScopesWhileExecuting)
+        }
     }
 
     // MARK: - TrackedScope Protocol
@@ -368,67 +383,67 @@ private class TestScope: TrackedScope {
 
 // MARK: Scopes
 
-func describe(_ title: String, _ closure: () -> Void) {
+public func describe(_ title: String, _ closure: () -> Void) {
     intakeScope(type: .describe, title, closure, mark: .none)
 }
 
-func fdescribe(_ title: String, _ closure: () -> Void) {
+public func fdescribe(_ title: String, _ closure: () -> Void) {
     intakeScope(type: .describe, title, closure, mark: .focused)
 }
 
-func xdescribe(_ title: String, _ closure: () -> Void) {
+public func xdescribe(_ title: String, _ closure: () -> Void) {
     intakeScope(type: .describe, title, closure, mark: .pending)
 }
 
-func context(_ title: String, _ closure: () -> Void) {
+public func context(_ title: String, _ closure: () -> Void) {
     intakeScope(type: .context, title, closure, mark: .none)
 }
 
-func fcontext(_ title: String, _ closure: () -> Void) {
+public func fcontext(_ title: String, _ closure: () -> Void) {
     intakeScope(type: .context, title, closure, mark: .focused)
 }
 
-func xcontext(_ title: String, _ closure: () -> Void) {
+public func xcontext(_ title: String, _ closure: () -> Void) {
     intakeScope(type: .context, title, closure, mark: .pending)
 }
 
-func group(_ title: String = "", _ closure: () -> Void) {
+public func group(_ title: String = "", _ closure: () -> Void) {
     intakeScope(type: .group, title, closure, mark: .none)
 }
 
-func fgroup(_ title: String = "", _ closure: () -> Void) {
+public func fgroup(_ title: String = "", _ closure: () -> Void) {
     intakeScope(type: .group, title, closure, mark: .focused)
 }
 
-func xgroup(_ title: String = "", _ closure: () -> Void) {
+public func xgroup(_ title: String = "", _ closure: () -> Void) {
     intakeScope(type: .group, title, closure, mark: .pending)
 }
 
 // MARK: Steps
 
-func beforeEach(_ closure: @escaping () -> Void) {
+public func beforeEach(_ closure: @escaping () -> Void) {
     intakeStep(type: .beforeEach, closure: closure)
 }
 
-func subjectAction(_ closure: @escaping () -> Void) {
+public func subjectAction(_ closure: @escaping () -> Void) {
     intakeStep(type: .subjectAction, closure: closure)
 }
 
-func afterEach(_ closure: @escaping () -> Void) {
+public func afterEach(_ closure: @escaping () -> Void) {
     intakeStep(type: .afterEach, closure: closure)
 }
 
 // MARK: Its
 
-func it(_ title: String, closure: @escaping () -> Bool) {
+public func it(_ title: String, closure: @escaping () -> Bool) {
     intakeIt(title, closure: closure, mark: .none)
 }
 
-func fit(_ title: String, closure: @escaping () -> Bool) {
+public func fit(_ title: String, closure: @escaping () -> Bool) {
     intakeIt(title, closure: closure, mark: .focused)
 }
 
-func xit(_ title: String, closure: @escaping () -> Bool) {
+public func xit(_ title: String, closure: @escaping () -> Bool) {
     intakeIt(title, closure: closure, mark: .pending)
 }
 
