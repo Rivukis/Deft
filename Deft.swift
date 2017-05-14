@@ -1,13 +1,9 @@
 
+// TODO: add support for expects (instead of it block returning Bool)
+
 private struct Constant {
     static let levelSpace = "   "
-    static let emptyTitle = "" // "(no helpful text provided)"
-    static let nilGroupKey = "_____"
-
-    struct ErrorMessage {
-        static let tooManySubjectActions = "Only one \"subjectAction()\" per `it`."
-        static let newScopesWhileExecuting = "Tried to add a scope during a test. This is probably caused be a test block (describe, it, beforeEach, etc.) is defined inside an `it` block."
-    }
+    static let emptyTitle = ""
 
     struct OutPutPrefix {
         static let topLevel = "Test: "
@@ -15,6 +11,9 @@ private struct Constant {
         static let context = "Context: "
         static let group = "Group: "
         static let it = "It: "
+
+        static let focused = "F-"
+        static let pending = "X-"
     }
 
     struct SingleCharacter {
@@ -22,6 +21,36 @@ private struct Constant {
         static let success = "."
         static let failure = "F"
         static let pending = ">"
+    }
+}
+
+private struct I18n {
+    enum Key {
+        case tooManySubjectActions
+        case newScopesWhileExecuting
+        case itOutsideOfScope
+        case stepOutsideOfScope(StepType)
+        case lineOutput(text: String, level: Int, firstCharacter: String)
+        case endLine(totalCount: Int, succeeded: Int, pending: Int)
+    }
+
+    static func t(_ key: Key) -> String {
+        switch key {
+        case .tooManySubjectActions:
+            return "Only one \"subjectAction()\" per `it`."
+        case .newScopesWhileExecuting:
+            return "Tried to add a scope during a test. This is probably caused be a test block (describe, it, beforeEach, etc.) is defined inside an `it` block."
+        case .itOutsideOfScope:
+            return "`it`s must be inside a `describe` or `context` scope."
+        case .stepOutsideOfScope(let type):
+            return "`\(type)`s must be inside a `describe` or `context` scope."
+        case .lineOutput(let text, let level, let firstCharacter):
+            let space = String(repeating: Constant.levelSpace, count: level)
+            return firstCharacter + space + text + "\n"
+        case .endLine(let totalCount, let succeeded, let pending):
+            let testText = totalCount == 1 ? "test" : "tests"
+            return "\n Executed \(totalCount) \(testText)\n  |- \(succeeded) succeeded\n  |- \(totalCount - succeeded - pending) failed\n  |- \(pending) pending\n\n"
+        }
     }
 }
 
@@ -82,17 +111,6 @@ private class TestResult {
     }
 }
 
-private func format(_ string: String, level: Int, firstCharacter: String) -> String {
-    let space = String(repeating: Constant.levelSpace, count: level)
-    return firstCharacter + space + string + "\n"
-}
-
-private func endLine(totalCount: Int, succeeded: Int, pending: Int) -> String {
-    let testText = totalCount == 1 ? "test" : "tests"
-    return "\n Executed \(totalCount) \(testText)\n  |- \(succeeded) succeeded\n  |- \(totalCount - succeeded - pending) failed\n  |- \(pending) pending\n\n"
-}
-
-
 private class It {
     private let title: String
     private let closure: () -> Bool
@@ -110,9 +128,14 @@ private class It {
     }
 
     var displayableTitle: String {
-        get {
-            return Constant.OutPutPrefix.it + (title.isEmpty ? Constant.emptyTitle : title)
+        let prePrefix: String
+        switch mark {
+        case .none: prePrefix = ""
+        case .focused: prePrefix = Constant.OutPutPrefix.focused
+        case .pending: prePrefix = Constant.OutPutPrefix.pending
         }
+
+        return prePrefix + Constant.OutPutPrefix.it + (title.isEmpty ? Constant.emptyTitle : title)
     }
 
     init(title: String, closure: @escaping () -> Bool, mark: Mark) {
@@ -156,7 +179,7 @@ private class It {
         let hasTestsToRun = its.reduce(false) { $0 || $1.shouldExecute(isSomethingFocused: isSomethingFocused) }
         guard hasTestsToRun else {
             return its.reduce(TestResult()) {
-                let testDescription = format($1.displayableTitle, level: level, firstCharacter: Constant.SingleCharacter.pending)
+                let testDescription = I18n.t(.lineOutput(text: $1.displayableTitle, level: level, firstCharacter: Constant.SingleCharacter.pending))
                 return $0 + TestResult(description: testDescription, total: 1, pending: 1)
             }
         }
@@ -166,7 +189,7 @@ private class It {
         let afterEachs = steps.filter { $0.type == .afterEach }
 
         guard subjectActions.count <= 1 else {
-            fatalError(Constant.ErrorMessage.tooManySubjectActions)
+            fatalError(I18n.t(.tooManySubjectActions))
         }
 
         beforeEachs.forEach { $0.closure() }
@@ -174,13 +197,13 @@ private class It {
 
         let result = its.reduce(TestResult()) {
             guard $1.shouldExecute(isSomethingFocused: isSomethingFocused) else {
-                let testDescription = format($1.displayableTitle, level: level, firstCharacter: Constant.SingleCharacter.pending)
+                let testDescription = I18n.t(.lineOutput(text: $1.displayableTitle, level: level, firstCharacter: Constant.SingleCharacter.pending))
                 return $0 + TestResult(description: testDescription, total: 1, pending: 1)
             }
 
             let success = $1.closure()
             let outcomeSymbol = success ? Constant.SingleCharacter.success : Constant.SingleCharacter.failure
-            let testDescription = format($1.displayableTitle, level: level, firstCharacter: outcomeSymbol)
+            let testDescription = I18n.t(.lineOutput(text: $1.displayableTitle, level: level, firstCharacter: outcomeSymbol))
             return $0 + TestResult(description: testDescription, total: 1, succeeded: success ? 1 : 0)
         }
 
@@ -220,12 +243,19 @@ private class Scope: TrackedScope {
     }
 
     private var displayableTitle: String {
+        let prePrefix: String
+        switch mark {
+        case .none: prePrefix = ""
+        case .focused: prePrefix = Constant.OutPutPrefix.focused
+        case .pending: prePrefix = Constant.OutPutPrefix.pending
+        }
+
         let prefix: String
         switch type {
-        case .topLevel: prefix = Constant.OutPutPrefix.topLevel
-        case .describe: prefix = Constant.OutPutPrefix.describe
-        case .context: prefix = Constant.OutPutPrefix.context
-        case .group: prefix = Constant.OutPutPrefix.group
+        case .topLevel: prefix = prePrefix + Constant.OutPutPrefix.topLevel
+        case .describe: prefix = prePrefix + Constant.OutPutPrefix.describe
+        case .context: prefix = prePrefix + Constant.OutPutPrefix.context
+        case .group: prefix = prePrefix + Constant.OutPutPrefix.group
         }
 
         let displayableDescription = title.isEmpty ? Constant.emptyTitle : title
@@ -233,11 +263,11 @@ private class Scope: TrackedScope {
         return prefix + displayableDescription
     }
 
-    var hasFocus: Bool {
+    var hasActiveFocus: Bool {
         if actingPending {
             return false
         } else {
-            let subScopeHasFocus = subScopes.reduce(false) { $0 || $1.hasFocus }
+            let subScopeHasFocus = subScopes.reduce(false) { $0 || $1.hasActiveFocus }
             let itHasFocus = its.reduce(false) { $0 || $1.actingFocused }
             return subScopeHasFocus || itHasFocus || actingFocused
         }
@@ -277,7 +307,7 @@ private class Scope: TrackedScope {
         return scopes.reduce(TestResult()) {
             let aggregatedSteps = accumulatedSteps + $1.steps
 
-            let scopeDescriptionResult = TestResult(description: format($1.displayableTitle, level: level, firstCharacter: Constant.SingleCharacter.blank))
+            let scopeDescriptionResult = TestResult(description: I18n.t(.lineOutput(text: $1.displayableTitle, level: level, firstCharacter: Constant.SingleCharacter.blank)))
             let itsResult = It.execute($1.its, level: level + 1, steps: aggregatedSteps, isSomethingFocused: isSomethingFocused, inGroup: $1.type == .group)
             let subScopesResult = execute($1.subScopes, isSomethingFocused: isSomethingFocused, level: level + 1, accumulatedSteps: aggregatedSteps)
 
@@ -349,8 +379,8 @@ private class TestScope: TrackedScope {
     func execute() {
         isExecuting = true
         rootScope.process(underFocus: false, underPending: false)
-        let result = Scope.execute([rootScope], isSomethingFocused: rootScope.hasFocus)
-        let endline = endLine(totalCount: result.total, succeeded: result.succeeded, pending: result.pending)
+        let result = Scope.execute([rootScope], isSomethingFocused: rootScope.hasActiveFocus)
+        let endline = I18n.t(.endLine(totalCount: result.total, succeeded: result.succeeded, pending: result.pending))
         print(result.description + endline)
         isExecuting = false
     }
@@ -359,7 +389,7 @@ private class TestScope: TrackedScope {
 
     private func ensureNotExecuting() {
         guard !isExecuting else {
-            fatalError(Constant.ErrorMessage.newScopesWhileExecuting)
+            fatalError(I18n.t(.newScopesWhileExecuting))
         }
     }
 
@@ -457,7 +487,7 @@ private func intakeScope(type: ScopeType, _ title: String, _ closure: () -> Void
 
 private func intakeStep(type: StepType, closure: @escaping () -> Void) {
     guard let currentScope = TestScope.currentTestScope else {
-        fatalError("`\(type)`s must be inside a `describe` or `context` scope.")
+        fatalError(I18n.t(.stepOutsideOfScope(type)))
     }
 
     currentScope.intake(Step(type: type, closure))
@@ -465,7 +495,7 @@ private func intakeStep(type: StepType, closure: @escaping () -> Void) {
 
 private func intakeIt(_ title: String, closure: @escaping () -> Bool, mark: Mark) {
     guard let currentScope = TestScope.currentTestScope else {
-        fatalError("`it`s must be inside a `describe` or `context` scope.")
+        fatalError(I18n.t(.itOutsideOfScope))
     }
 
     currentScope.intake(It(title: title, closure: closure, mark: mark))
@@ -515,13 +545,13 @@ describe("a class") {
                 print("after each\n")
             }
 
-            group("abc") {
-                it("should 1") {
-                    print("should 1")
-                    return "" == "asdf"
-                }
+            fit("should 1") {
+                print("should 1")
+                return false
+            }
 
-                it("should 2") {
+            xgroup("abc") {
+                fit("should 2") {
                     print("should 2")
                     return true
                 }
@@ -530,11 +560,11 @@ describe("a class") {
                     print("should 3")
                     return true
                 }
-            }
-            
-            it("should 4") {
-                print("should 4")
-                return false
+
+                it("should 4") {
+                    print("should 4")
+                    return "" == "asdf"
+                }
             }
         }
         
