@@ -1,5 +1,57 @@
 
-// TODO: add support for expects (instead of it block returning Bool)
+// Matcher Framework
+
+class Matcher<T> {
+    func execute(actual: T) -> Bool {
+        fatalError("This is a Base class. Must subclass to use")
+    }
+}
+
+// - Default Matchers
+
+class EqualMatcher<T: Equatable>: Matcher<T> {
+    let expected: T
+
+    init(expected: T) {
+        self.expected = expected
+    }
+
+    override func execute(actual: T) -> Bool {
+        return actual == expected
+    }
+}
+
+protocol BoolType {}
+extension Bool: BoolType {}
+
+class BeTrueMatcher<T: BoolType>: Matcher<T> {
+    override func execute(actual: T) -> Bool {
+        return (actual as! Bool)
+    }
+}
+
+class BeFalseMatcher<T: BoolType>: Matcher<T> {
+    override func execute(actual: T) -> Bool {
+        return !(actual as! Bool)
+    }
+}
+
+// - Global Matcher Functions
+
+func equal<T: Equatable>(_ expected: T) -> Matcher<T> {
+    return EqualMatcher(expected: expected)
+}
+
+func beTrue<T: BoolType>() -> Matcher<T> {
+    return BeTrueMatcher()
+}
+
+func beFalse<T: BoolType>() -> Matcher<T> {
+    return BeFalseMatcher()
+}
+
+
+// BDD Framework
 
 private struct Constant {
     static let levelSpace = "   "
@@ -28,8 +80,10 @@ private struct I18n {
     enum Key {
         case tooManySubjectActions
         case newScopesWhileExecuting
-        case itOutsideOfScope
         case stepOutsideOfScope(StepType)
+        case itOutsideOfScope
+        case expectOutsideOfIt
+        case notAllowedInIt(String)
         case lineOutput(text: String, level: Int, firstCharacter: String)
         case endLine(totalCount: Int, succeeded: Int, pending: Int)
     }
@@ -40,10 +94,14 @@ private struct I18n {
             return "Only one \"subjectAction()\" per `it`."
         case .newScopesWhileExecuting:
             return "Tried to add a scope during a test. This is probably caused be a test block (describe, it, beforeEach, etc.) is defined inside an `it` block."
-        case .itOutsideOfScope:
-            return "`it`s must be inside a `describe` or `context` scope."
         case .stepOutsideOfScope(let type):
             return "`\(type)`s must be inside a `describe` or `context` scope."
+        case .itOutsideOfScope:
+            return "`it`s must be inside a `describe` or `context` scope."
+        case .expectOutsideOfIt:
+            return "`expects`s must be inside an `it` scope."
+        case .notAllowedInIt(let string):
+            return "`\(string)` not allowed in `it` scope."
         case .lineOutput(let text, let level, let firstCharacter):
             let space = String(repeating: Constant.levelSpace, count: level)
             return firstCharacter + space + text + "\n"
@@ -56,9 +114,10 @@ private struct I18n {
 
 
 private protocol TrackedScope {
+    func add(_ scope: Scope)
     func add(_ step: Step)
     func add(_ it: It)
-    func add(_ scope: Scope)
+    func add(_ expect: Expect)
 }
 
 private enum StepType {
@@ -111,11 +170,45 @@ private class TestResult {
     }
 }
 
-private class It {
+
+private class Expect {
+    private let captured: () -> Bool
+
+    init<T>(actual: T, matcher: Matcher<T>) {
+        self.captured = { matcher.execute(actual: actual) }
+    }
+
+    private func execute() -> Bool {
+        return captured()
+    }
+
+    static func execute(_ expects: [Expect]) -> Bool {
+        return expects.reduce(true) { $0 && $1.execute() }
+    }
+}
+
+public class ExpectPartOne<T> {
+    let actual: T
+
+    init(actual: T) {
+        self.actual = actual
+    }
+
+    func to(_ matcher: Matcher<T>) {
+        guard let currentScope = TestScope.currentTestScope else {
+            fatalError(I18n.t(.expectOutsideOfIt))
+        }
+
+        let expect = Expect(actual: actual, matcher: matcher)
+        currentScope.intake(expect)
+    }
+}
+
+private class It: TrackedScope {
     private let title: String
-    private let closure: () -> Bool
     private let mark: Mark
 
+    var expects: [Expect] = []
     var underFocus: Bool = false
     var underPending: Bool = false
 
@@ -138,15 +231,32 @@ private class It {
         return prePrefix + Constant.OutPutPrefix.it + (title.isEmpty ? Constant.emptyTitle : title)
     }
 
-    init(title: String, closure: @escaping () -> Bool, mark: Mark) {
+    init(title: String, mark: Mark) {
         self.title = title
-        self.closure = closure
         self.mark = mark
     }
 
     func process(underFocus: Bool, underPending: Bool) {
         self.underFocus = underFocus
         self.underPending = underPending
+    }
+
+    // MARK: TrackedScope Protocol
+
+    func add(_ scope: Scope) {
+        fatalError(I18n.t(.notAllowedInIt("\(scope.type)")))
+    }
+
+    func add(_ step: Step) {
+        fatalError(I18n.t(.notAllowedInIt("\(step.type)")))
+    }
+
+    func add(_ it: It) {
+        fatalError(I18n.t(.notAllowedInIt("it")))
+    }
+
+    func add(_ expect: Expect) {
+        expects.append(expect)
     }
 
     // MARK: Helper
@@ -201,7 +311,7 @@ private class It {
                 return $0 + TestResult(description: testDescription, total: 1, pending: 1)
             }
 
-            let success = $1.closure()
+            let success = Expect.execute($1.expects)
             let outcomeSymbol = success ? Constant.SingleCharacter.success : Constant.SingleCharacter.failure
             let testDescription = I18n.t(.lineOutput(text: $1.displayableTitle, level: level, firstCharacter: outcomeSymbol))
             return $0 + TestResult(description: testDescription, total: 1, succeeded: success ? 1 : 0)
@@ -224,9 +334,10 @@ private class Step {
 }
 
 private class Scope: TrackedScope {
-    private let type: ScopeType
     private let title: String
     private let mark: Mark
+
+    let type: ScopeType
 
     private var underFocus: Bool = false
     private var underPending: Bool = false
@@ -301,6 +412,10 @@ private class Scope: TrackedScope {
         subScopes.append(scope)
     }
 
+    func add(_ expect: Expect) {
+        fatalError(I18n.t(.expectOutsideOfIt))
+    }
+
     // MARK: static
 
     static func execute(_ scopes: [Scope], isSomethingFocused: Bool, level: Int = 0, accumulatedSteps: [Step] = []) -> TestResult {
@@ -328,19 +443,26 @@ private class Tracker {
         return scopes.last!
     }
 
-    func intake(_ step: Step) {
-        scopes.last!.add(step)
-    }
-
-    func intake(_ it: It) {
-        scopes.last!.add(it)
-    }
-
     func intake(_ scope: Scope, closure: () -> Void) {
         scopes.last!.add(scope)
         scopes.append(scope)
         closure()
         scopes.removeLast()
+    }
+
+    func intake(_ it: It, closure: () -> Void) {
+        scopes.last!.add(it)
+        scopes.append(it)
+        closure()
+        scopes.removeLast()
+    }
+
+    func intake(_ step: Step) {
+        scopes.last!.add(step)
+    }
+
+    func intake(_ expect: Expect) {
+        scopes.last!.add(expect)
     }
 }
 
@@ -366,14 +488,19 @@ private class TestScope: TrackedScope {
         tracker.intake(scope, closure: closure)
     }
 
+    func intake(_ it: It, closure: () -> Void) {
+        ensureNotExecuting()
+        tracker.intake(it, closure: closure)
+    }
+
     func intake(_ step: Step) {
         ensureNotExecuting()
         tracker.intake(step)
     }
 
-    func intake(_ it: It) {
+    func intake(_ expect: Expect) {
         ensureNotExecuting()
-        tracker.intake(it)
+        tracker.intake(expect)
     }
 
     func execute() {
@@ -405,6 +532,10 @@ private class TestScope: TrackedScope {
 
     func add(_ it: It) {
         rootScope.add(it)
+    }
+
+    func add(_ expect: Expect) {
+        fatalError(I18n.t(.expectOutsideOfIt))
     }
 }
 
@@ -447,6 +578,18 @@ public func xgroup(_ title: String = "", _ closure: () -> Void) {
     intakeScope(type: .group, title, closure, mark: .pending)
 }
 
+public func it(_ title: String, closure: () -> Void) {
+    intakeIt(title, closure: closure, mark: .none)
+}
+
+public func fit(_ title: String, closure: () -> Void) {
+    intakeIt(title, closure: closure, mark: .focused)
+}
+
+public func xit(_ title: String, closure: () -> Void) {
+    intakeIt(title, closure: closure, mark: .pending)
+}
+
 // MARK: Steps
 
 public func beforeEach(_ closure: @escaping () -> Void) {
@@ -461,19 +604,12 @@ public func afterEach(_ closure: @escaping () -> Void) {
     intakeStep(type: .afterEach, closure: closure)
 }
 
-// MARK: Its
+// MARK: Expect
 
-public func it(_ title: String, closure: @escaping () -> Bool) {
-    intakeIt(title, closure: closure, mark: .none)
+public func expect<T>(_ actual: T) -> ExpectPartOne<T> {
+    return ExpectPartOne(actual: actual)
 }
 
-public func fit(_ title: String, closure: @escaping () -> Bool) {
-    intakeIt(title, closure: closure, mark: .focused)
-}
-
-public func xit(_ title: String, closure: @escaping () -> Bool) {
-    intakeIt(title, closure: closure, mark: .pending)
-}
 
 // Helpers
 
@@ -493,12 +629,12 @@ private func intakeStep(type: StepType, closure: @escaping () -> Void) {
     currentScope.intake(Step(type: type, closure))
 }
 
-private func intakeIt(_ title: String, closure: @escaping () -> Bool, mark: Mark) {
+private func intakeIt(_ title: String, closure: () -> Void, mark: Mark) {
     guard let currentScope = TestScope.currentTestScope else {
         fatalError(I18n.t(.itOutsideOfScope))
     }
 
-    currentScope.intake(It(title: title, closure: closure, mark: mark))
+    currentScope.intake(It(title: title, mark: mark), closure: closure)
 }
 
 private func newTest(title: String, closure: () -> Void, mark: Mark) {
@@ -530,6 +666,20 @@ describe("a class") {
             subjectAction {
 
             }
+
+            it("should be true") {
+                expect(true).to(beTrue())
+                expect(45).to(equal(45))
+
+            }
+
+            it("should be false") {
+                expect(true).to(beFalse())
+            }
+
+            it("should equate") {
+                expect(45).to(equal(45))
+            }
         }
 
         context("when that stuff is brown") {
@@ -545,32 +695,32 @@ describe("a class") {
                 print("after each\n")
             }
 
-            fit("should 1") {
+            it("should 1") {
                 print("should 1")
-                return false
+                expect(true).to(beTrue())
             }
 
-            xgroup("abc") {
-                fit("should 2") {
+            group("abc") {
+                it("should 2") {
                     print("should 2")
-                    return true
+                    expect(true).to(beTrue())
                 }
 
                 it("should 3") {
                     print("should 3")
-                    return true
+                    expect(true).to(beTrue())
                 }
-
+                
                 it("should 4") {
                     print("should 4")
-                    return "" == "asdf"
+                    expect(true).to(beTrue())
                 }
             }
         }
         
         context("when that stuff is gray") {
-            it("") {
-                return true
+            it("should do stuff") {
+                expect(true).to(beTrue())
             }
         }
     }
@@ -582,25 +732,6 @@ context("next thing") {
         
     }
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 
