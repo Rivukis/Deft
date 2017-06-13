@@ -1,7 +1,7 @@
 
 // Matcher Framework
 
-class Matcher<T> {
+public class Matcher<T> {
     func execute(actual: T) -> Bool {
         fatalError("This is a Base class. Must subclass to use")
     }
@@ -21,7 +21,7 @@ class EqualMatcher<T: Equatable>: Matcher<T> {
     }
 }
 
-protocol BoolType {}
+public protocol BoolType {}
 extension Bool: BoolType {}
 
 class BeTrueMatcher<T: BoolType>: Matcher<T> {
@@ -36,18 +36,37 @@ class BeFalseMatcher<T: BoolType>: Matcher<T> {
     }
 }
 
+protocol BlockType {}
+struct Block: BlockType {
+    let held: () -> Void
+
+    init(_ held: @escaping () -> Void) {
+        self.held = held
+    }
+}
+class LogTrackerMatcher<T: BlockType>: Matcher<T> {
+    override func execute(actual: T) -> Bool {
+        (actual as! Block).held()
+        return true
+    }
+}
+
 // - Global Matcher Functions
 
-func equal<T: Equatable>(_ expected: T) -> Matcher<T> {
+public func equal<T: Equatable>(_ expected: T) -> Matcher<T> {
     return EqualMatcher(expected: expected)
 }
 
-func beTrue<T: BoolType>() -> Matcher<T> {
+public func beTrue<T: BoolType>() -> Matcher<T> {
     return BeTrueMatcher()
 }
 
-func beFalse<T: BoolType>() -> Matcher<T> {
+public func beFalse<T: BoolType>() -> Matcher<T> {
     return BeFalseMatcher()
+}
+
+func log<T: BlockType>() -> Matcher<T> {
+    return LogTrackerMatcher()
 }
 
 
@@ -117,7 +136,6 @@ private protocol TrackedScope {
     func add(_ scope: Scope)
     func add(_ step: Step)
     func add(_ it: It)
-    func add(_ expect: Expect)
 }
 
 private enum StepType {
@@ -194,7 +212,7 @@ public class ExpectPartOne<T> {
         self.actual = actual
     }
 
-    func to(_ matcher: Matcher<T>) {
+    public func to(_ matcher: Matcher<T>) {
         guard let currentScope = TestScope.currentTestScope else {
             fatalError(I18n.t(.expectOutsideOfIt))
         }
@@ -204,9 +222,11 @@ public class ExpectPartOne<T> {
     }
 }
 
-private class It: TrackedScope {
+private class It {
     private let title: String
     private let mark: Mark
+
+    let closure: () -> Void
 
     var expects: [Expect] = []
     var underFocus: Bool = false
@@ -231,28 +251,15 @@ private class It: TrackedScope {
         return prePrefix + Constant.OutPutPrefix.it + (title.isEmpty ? Constant.emptyTitle : title)
     }
 
-    init(title: String, mark: Mark) {
+    init(title: String, mark: Mark, closure: @escaping () -> Void) {
         self.title = title
         self.mark = mark
+        self.closure = closure
     }
 
     func process(underFocus: Bool, underPending: Bool) {
         self.underFocus = underFocus
         self.underPending = underPending
-    }
-
-    // MARK: TrackedScope Protocol
-
-    func add(_ scope: Scope) {
-        fatalError(I18n.t(.notAllowedInIt("\(scope.type)")))
-    }
-
-    func add(_ step: Step) {
-        fatalError(I18n.t(.notAllowedInIt("\(step.type)")))
-    }
-
-    func add(_ it: It) {
-        fatalError(I18n.t(.notAllowedInIt("it")))
     }
 
     func add(_ expect: Expect) {
@@ -293,6 +300,9 @@ private class It: TrackedScope {
                 return $0 + TestResult(description: testDescription, total: 1, pending: 1)
             }
         }
+        guard let currentScope = TestScope.currentTestScope else {
+            fatalError(I18n.t(.itOutsideOfScope))
+        }
 
         let beforeEachs = steps.filter { $0.type == .beforeEach }
         let subjectActions = steps.filter { $0.type == .subjectAction }
@@ -304,6 +314,7 @@ private class It: TrackedScope {
 
         beforeEachs.forEach { $0.closure() }
         subjectActions.forEach { $0.closure() }
+        its.forEach { currentScope.process($0) }
 
         let result = its.reduce(TestResult()) {
             guard $1.shouldExecute(isSomethingFocused: isSomethingFocused) else {
@@ -412,10 +423,6 @@ private class Scope: TrackedScope {
         subScopes.append(scope)
     }
 
-    func add(_ expect: Expect) {
-        fatalError(I18n.t(.expectOutsideOfIt))
-    }
-
     // MARK: static
 
     static func execute(_ scopes: [Scope], isSomethingFocused: Bool, level: Int = 0, accumulatedSteps: [Step] = []) -> TestResult {
@@ -434,6 +441,7 @@ private class Scope: TrackedScope {
 
 private class Tracker {
     var scopes: [TrackedScope]
+    var it: It?
 
     init(rootScope: TrackedScope) {
         self.scopes = [rootScope]
@@ -450,19 +458,25 @@ private class Tracker {
         scopes.removeLast()
     }
 
-    func intake(_ it: It, closure: () -> Void) {
+    func intake(_ it: It) {
         scopes.last!.add(it)
-        scopes.append(it)
-        closure()
-        scopes.removeLast()
     }
 
     func intake(_ step: Step) {
         scopes.last!.add(step)
     }
 
+    func process(_ it: It) {
+        self.it = it
+        it.closure()
+        self.it = nil
+    }
+
     func intake(_ expect: Expect) {
-        scopes.last!.add(expect)
+        guard let it = it else {
+            fatalError(I18n.t(.expectOutsideOfIt))
+        }
+        it.add(expect)
     }
 }
 
@@ -488,9 +502,9 @@ private class TestScope: TrackedScope {
         tracker.intake(scope, closure: closure)
     }
 
-    func intake(_ it: It, closure: () -> Void) {
+    func intake(_ it: It) {
         ensureNotExecuting()
-        tracker.intake(it, closure: closure)
+        tracker.intake(it)
     }
 
     func intake(_ step: Step) {
@@ -499,8 +513,14 @@ private class TestScope: TrackedScope {
     }
 
     func intake(_ expect: Expect) {
-        ensureNotExecuting()
+        guard isExecuting else {
+            fatalError(I18n.t(.expectOutsideOfIt))
+        }
         tracker.intake(expect)
+    }
+
+    func process(_ it: It) {
+        tracker.process(it)
     }
 
     func execute() {
@@ -532,10 +552,6 @@ private class TestScope: TrackedScope {
 
     func add(_ it: It) {
         rootScope.add(it)
-    }
-
-    func add(_ expect: Expect) {
-        fatalError(I18n.t(.expectOutsideOfIt))
     }
 }
 
@@ -578,15 +594,15 @@ public func xgroup(_ title: String = "", _ closure: () -> Void) {
     intakeScope(type: .group, title, closure, mark: .pending)
 }
 
-public func it(_ title: String, closure: () -> Void) {
+public func it(_ title: String, closure: @escaping () -> Void) {
     intakeIt(title, closure: closure, mark: .none)
 }
 
-public func fit(_ title: String, closure: () -> Void) {
+public func fit(_ title: String, closure: @escaping () -> Void) {
     intakeIt(title, closure: closure, mark: .focused)
 }
 
-public func xit(_ title: String, closure: () -> Void) {
+public func xit(_ title: String, closure: @escaping () -> Void) {
     intakeIt(title, closure: closure, mark: .pending)
 }
 
@@ -629,12 +645,12 @@ private func intakeStep(type: StepType, closure: @escaping () -> Void) {
     currentScope.intake(Step(type: type, closure))
 }
 
-private func intakeIt(_ title: String, closure: () -> Void, mark: Mark) {
+private func intakeIt(_ title: String, closure: @escaping () -> Void, mark: Mark) {
     guard let currentScope = TestScope.currentTestScope else {
         fatalError(I18n.t(.itOutsideOfScope))
     }
 
-    currentScope.intake(It(title: title, mark: mark), closure: closure)
+    currentScope.intake(It(title: title, mark: mark, closure: closure))
 }
 
 private func newTest(title: String, closure: () -> Void, mark: Mark) {
@@ -657,7 +673,7 @@ private func newTest(title: String, closure: () -> Void, mark: Mark) {
 
 
 
-
+var timingLogs: [String] = []
 
 
 describe("a class") {
@@ -684,36 +700,28 @@ describe("a class") {
 
         context("when that stuff is brown") {
             beforeEach {
-
-            }
-
-            beforeEach {
-                print("before each")
+                timingLogs.append("before each")
             }
 
             afterEach {
-                print("after each\n")
+                timingLogs.append("after each")
             }
 
             it("should 1") {
-                print("should 1")
-                expect(true).to(beTrue())
+                expect(Block { timingLogs.append("should 1") }).to(log())
             }
 
-            group("abc") {
+            group {
                 it("should 2") {
-                    print("should 2")
-                    expect(true).to(beTrue())
+                    expect(Block { timingLogs.append("should 2") }).to(log())
                 }
 
                 it("should 3") {
-                    print("should 3")
-                    expect(true).to(beTrue())
+                    expect(Block { timingLogs.append("should 3") }).to(log())
                 }
                 
                 it("should 4") {
-                    print("should 4")
-                    expect(true).to(beTrue())
+                    expect(Block { timingLogs.append("should 4") }).to(log())
                 }
             }
         }
@@ -733,7 +741,7 @@ context("next thing") {
     }
 }
 
-
+timingLogs.forEach { print($0) }
 
 
 
