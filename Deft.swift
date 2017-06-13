@@ -191,13 +191,16 @@ private class TestResult {
 
 private class Expect {
     private let captured: () -> Bool
+    private let negativeTest: Bool
 
-    init<T>(actual: T, matcher: Matcher<T>) {
+    init<T>(actual: T, matcher: Matcher<T>, negativeTest: Bool) {
         self.captured = { matcher.execute(actual: actual) }
+        self.negativeTest = negativeTest
     }
 
     private func execute() -> Bool {
-        return captured()
+        let result = captured()
+        return result && !negativeTest || !result && negativeTest
     }
 
     static func execute(_ expects: [Expect]) -> Bool {
@@ -217,8 +220,21 @@ public class ExpectPartOne<T> {
             fatalError(I18n.t(.expectOutsideOfIt))
         }
 
-        let expect = Expect(actual: actual, matcher: matcher)
+        let expect = Expect(actual: actual, matcher: matcher, negativeTest: false)
         currentScope.intake(expect)
+    }
+
+    public func toNot(_ matcher: Matcher<T>) {
+        guard let currentScope = TestScope.currentTestScope else {
+            fatalError(I18n.t(.expectOutsideOfIt))
+        }
+
+        let expect = Expect(actual: actual, matcher: matcher, negativeTest: true)
+        currentScope.intake(expect)
+    }
+
+    public func notTo(_ matcher: Matcher<T>) {
+        toNot(matcher)
     }
 }
 
@@ -594,15 +610,15 @@ public func xgroup(_ title: String = "", _ closure: () -> Void) {
     intakeScope(type: .group, title, closure, mark: .pending)
 }
 
-public func it(_ title: String, closure: @escaping () -> Void) {
+public func it(_ title: String, _ closure: @escaping () -> Void) {
     intakeIt(title, closure: closure, mark: .none)
 }
 
-public func fit(_ title: String, closure: @escaping () -> Void) {
+public func fit(_ title: String, _ closure: @escaping () -> Void) {
     intakeIt(title, closure: closure, mark: .focused)
 }
 
-public func xit(_ title: String, closure: @escaping () -> Void) {
+public func xit(_ title: String, _ closure: @escaping () -> Void) {
     intakeIt(title, closure: closure, mark: .pending)
 }
 
@@ -658,6 +674,8 @@ private func newTest(title: String, closure: () -> Void, mark: Mark) {
     testScope.execute()
     TestScope.currentTestScope = nil
 }
+
+
 
 
 
