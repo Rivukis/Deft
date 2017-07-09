@@ -1,222 +1,77 @@
 
-// MARK: - Matcher Framework
+// MARK: - Matcher
 
-public protocol Matcher {
-    associatedtype Actual
-    associatedtype Expected
+public class Matcher<Actual, Expected> {
+    let evaluator: (Actual) -> Bool
 
-    func execute(actual: Actual) -> Bool
-}
-
-private class _AnyMatcherBoxInterface<A, E>: Matcher {
-    public typealias Actual = A
-    public typealias Expected = E
+    init(_ evaluator: @escaping (Actual) -> Bool) {
+        self.evaluator = evaluator
+    }
 
     func execute(actual: Actual) -> Bool {
-        fatalError("abstract class")
+        return evaluator(actual)
     }
 }
 
-private class _AnyMatcherBox<T: Matcher>: _AnyMatcherBoxInterface<T.Actual, T.Expected> {
-    let concrete: T
+// MARK: - Built-in Matcher Functions
 
-    init(concrete: T) {
-        self.concrete = concrete
-    }
-
-    override func execute(actual: T.Actual) -> Bool {
-        return concrete.execute(actual: actual)
-    }
-}
-
-public class AnyMatcher<A, E>: Matcher {
-    public typealias Actual = A
-    public typealias Expected = E
-
-    private let box: _AnyMatcherBoxInterface<Actual, Expected>
-
-    init<T: Matcher>(matcher: T) where T.Actual == A, T.Expected == E {
-        self.box = _AnyMatcherBox(concrete: matcher)
-    }
-
-    public func execute(actual: A) -> Bool {
-        return box.execute(actual: actual)
-    }
-}
-
-// MARK: - Default Matchers
-
-public struct Closure<R> {
-    let closure: () -> R
-
-    public init(_ closure: @escaping () -> R) {
-        self.closure = closure
-    }
-
-    func execute() -> R {
-        return closure()
-    }
-}
-
-public struct ThrowingClosure<R> {
-    let closure: () throws -> R
-
-    public init(_ closure: @escaping () throws -> R) {
-        self.closure = closure
-    }
-
-    func execute() throws -> R {
-        return try closure()
-    }
-}
-
-class EqualMatcher<T: Equatable>: Matcher {
-    public typealias Actual = T?
-    public typealias Expected = T
-
-    let expected: Expected
-
-    init(expected: Expected) {
-        self.expected = expected
-    }
-
-    public func execute(actual: Actual) -> Bool {
+public func equal<T: Equatable>(_ expected: T) -> Matcher<T?, T> {
+    return Matcher { actual in
         return actual == expected
     }
 }
 
-public protocol BoolType {
-    var toBool: Bool { get }
-}
-extension BoolType {
-    public var toBool: Bool { return self as! Bool }
-}
-extension Bool: BoolType {}
-
-class BeTrueMatcher<T: BoolType>: Matcher {
-    typealias Actual = T
-    typealias Expected = Void
-
-    func execute(actual: T) -> Bool {
-        return actual.toBool
+public func beTrue() -> Matcher<Bool, Void> {
+    return Matcher { actual in
+        return actual
     }
 }
 
-class BeFalseMatcher<T: BoolType>: Matcher {
-    typealias Actual = T
-    typealias Expected = Void
-
-    func execute(actual: T) -> Bool {
-        return !actual.toBool
+public func beFalse() -> Matcher<Bool, Void> {
+    return Matcher { actual in
+        return !actual
     }
 }
 
-public protocol OptionalType {
-    associatedtype WrappedType
-    var toOptional: WrappedType? { get }
-}
-extension OptionalType {
-    public var toOptional: WrappedType? { return self as? WrappedType }
-}
-extension Optional: OptionalType {
-    public typealias WrappedType = Wrapped
-}
-
-class BeNilMatcher<T: OptionalType>: Matcher {
-    public typealias Actual = T
-    public typealias Expected = Void
-
-    public func execute(actual: Actual) -> Bool {
-        return actual.toOptional == nil
+public func beNil<T>() -> Matcher<T?, Void> {
+    return Matcher { actual in
+        return actual == nil
     }
 }
 
-class BeMatcher<T: AnyObject>: Matcher {
-    public typealias Actual = T
-    public typealias Expected = T
-
-    let expected: Expected
-
-    init(expected: Expected) {
-        self.expected = expected
-    }
-
-    func execute(actual: Actual) -> Bool {
+public func be<T: AnyObject>(_ expected: T) -> Matcher<T, T> {
+    return Matcher { actual in
         return actual === expected
     }
 }
 
-public protocol DoubleConvertable {
-    var toDouble: Double { get }
-}
-extension Double: DoubleConvertable {
-    public var toDouble: Double { return Double(self) }
-}
-extension Float: DoubleConvertable {
-    public var toDouble: Double { return Double(self) }
-}
-class BeCloseToMatcher<T: DoubleConvertable>: Matcher {
-    public typealias Actual = T
-    public typealias Expected = T
-
-    let expected: Expected
-    let maxDelta: Double
-
-    init(expected: Expected, maxDelta: Double) {
-        self.expected = expected
-        self.maxDelta = maxDelta
+public func beCloseTo(_ expected: Double, maxDelta: Double = 0.0001) -> Matcher<Double, Double> {
+    return Matcher { actual in
+        return abs(actual - expected) <= maxDelta
     }
-
-    func execute(actual: Actual) -> Bool {
-        return abs(actual.toDouble - expected.toDouble) <= maxDelta
+}
+public func beCloseTo(_ expected: Float, maxDelta: Float = 0.0001) -> Matcher<Float, Float> {
+    return Matcher { actual in
+        return abs(actual - expected) <= maxDelta
     }
 }
 
-class PassComparisonMatcher<T: Comparable>: Matcher {
-    public typealias Actual = T
-    public typealias Expected = T
-
-    let expected: Expected
-    let operation: (T, T) -> Bool
-
-    init(operation: @escaping (T, T) -> Bool, expected: Expected) {
-        self.expected = expected
-        self.operation = operation
-    }
-
-    func execute(actual: Actual) -> Bool {
+public func passComparison<T: Comparable>(_ operation: @escaping (T, T) -> Bool, _ expected: T) -> Matcher<T, T> {
+    return Matcher { actual in
         return operation(actual, expected)
     }
 }
 
-class HaveCountMatcher<C: Collection, IdxDist>: Matcher where C.IndexDistance == IdxDist {
-    public typealias Actual = C
-    public typealias Expected = IdxDist
-
-    let expected: Expected
-
-    init(expected: Expected) {
-        self.expected = expected
-    }
-
-    public func execute(actual: Actual) -> Bool {
+public func haveCount<C: Collection, IdxDist>(_ expected: IdxDist) -> Matcher<C, IdxDist> where C.IndexDistance == IdxDist {
+    return Matcher { actual in
         return actual.count == expected
     }
 }
 
-class ThrowErrorMatcher: Matcher {
-    public typealias Actual = ThrowingClosure<Void>
-    public typealias Expected = Void
-
-    let errorVerifier: ((Error) -> Bool)?
-
-    init(errorVerifier: ((Error) -> Bool)?) {
-        self.errorVerifier = errorVerifier
-    }
-
-    func execute(actual: Actual) -> Bool {
+public func throwError(errorVerifier: ((Error) -> Bool)? = nil) -> Matcher<() throws -> Void, Void> {
+    return Matcher { actual in
         do {
-            try actual.execute()
+            try actual()
         } catch let error {
             if let errorVerifier = errorVerifier {
                 return errorVerifier(error)
@@ -229,22 +84,13 @@ class ThrowErrorMatcher: Matcher {
     }
 }
 
-class ThrowEquatableErrorMatcher<T: Error & Equatable>: Matcher {
-    public typealias Actual = ThrowingClosure<Void>
-    public typealias Expected = T
-
-    let expectedError: Expected
-
-    init(expectedError: Expected) {
-        self.expectedError = expectedError
-    }
-
-    func execute(actual: Actual) -> Bool {
+public func throwError<T: Error & Equatable>(error: T) -> Matcher<() throws -> Void, T> {
+    return Matcher { actual in
         do {
-            try actual.execute()
-        } catch let error {
-            if let error = error as? T {
-                return error == expectedError
+            try actual()
+        } catch let actualError {
+            if let actualError = actualError as? T {
+                return actualError == error
             }
 
             return false
@@ -254,73 +100,17 @@ class ThrowEquatableErrorMatcher<T: Error & Equatable>: Matcher {
     }
 }
 
-class SucceedMatcher: Matcher {
-    public typealias Actual = Closure<Bool>
-    public typealias Expected = Void
-
-    func execute(actual: Actual) -> Bool {
-        return actual.execute()
+public func succeed() -> Matcher<() -> Bool, Void> {
+    return Matcher { actual in
+        return actual()
     }
 }
 
-class LogTrackerMatcher: Matcher {
-    public typealias Actual = Closure<Void>
-    public typealias Expected = Void
-
-    func execute(actual: Actual) -> Bool {
-        actual.execute()
+public func log() -> Matcher<() -> Void, Void> {
+    return Matcher { actual in
+        actual()
         return true
     }
-}
-
-// MARK: - Public Matcher Functions
-
-public func equal<T: Equatable>(_ expected: T) -> AnyMatcher<T?, T> {
-    return AnyMatcher(matcher: EqualMatcher(expected: expected))
-}
-
-public func beTrue<T: BoolType>() -> AnyMatcher<T, Void> {
-    return AnyMatcher(matcher: BeTrueMatcher())
-}
-
-public func beFalse<T: BoolType>() -> AnyMatcher<T, Void> {
-    return AnyMatcher(matcher: BeFalseMatcher())
-}
-
-public func beNil<T: OptionalType>() -> AnyMatcher<T, Void> {
-    return AnyMatcher(matcher: BeNilMatcher())
-}
-
-public func be<T: AnyObject>(_ expected: T) -> AnyMatcher<T, T> {
-    return AnyMatcher(matcher: BeMatcher(expected: expected))
-}
-
-public func beCloseTo<T: DoubleConvertable>(_ expected: T, maxDelta: Double = 0.0001) -> AnyMatcher<T, T> {
-    return AnyMatcher(matcher: BeCloseToMatcher(expected: expected, maxDelta: maxDelta))
-}
-
-public func passComparison<T: Comparable>(_ operation: @escaping (T, T) -> Bool, _ expected: T) -> AnyMatcher<T, T> {
-    return AnyMatcher(matcher: PassComparisonMatcher(operation: operation, expected: expected))
-}
-
-public func haveCount<C: Collection, IdxDist>(_ expected: IdxDist) -> AnyMatcher<C, IdxDist> where C.IndexDistance == IdxDist {
-    return AnyMatcher(matcher: HaveCountMatcher(expected: expected))
-}
-
-public func throwError(errorVerifier: ((Error) -> Bool)? = nil) -> AnyMatcher<ThrowingClosure<Void>, Void> {
-    return AnyMatcher(matcher: ThrowErrorMatcher(errorVerifier: errorVerifier))
-}
-
-public func throwError<T: Error & Equatable>(error: T) -> AnyMatcher<ThrowingClosure<Void>, T> {
-    return AnyMatcher(matcher: ThrowEquatableErrorMatcher(expectedError: error))
-}
-
-public func succeed() -> AnyMatcher<Closure<Bool>, Void> {
-    return AnyMatcher(matcher: SucceedMatcher())
-}
-
-public func log() -> AnyMatcher<Closure<Void>, Void> {
-    return AnyMatcher(matcher: LogTrackerMatcher())
 }
 
 // MARK: - TDD Framework
@@ -452,7 +242,7 @@ private class Expect {
     private let line: Int
     private let negativeTest: Bool
 
-    init<A, E>(actual: A, matcher: AnyMatcher<A, E>, line: Int, negativeTest: Bool) {
+    init<A, E>(actual: A, matcher: Matcher<A, E>, line: Int, negativeTest: Bool) {
         self.captured = { matcher.execute(actual: actual) }
         self.line = line
         self.negativeTest = negativeTest
@@ -489,7 +279,7 @@ public class ExpectPartOne<A, E> {
         self.line = line
     }
 
-    public func to(_ matcher: AnyMatcher<A, E>) {
+    public func to(_ matcher: Matcher<A, E>) {
         guard let currentScope = TestScope.currentTestScope else {
             fatalError(I18n.t(.expectOutsideOfIt))
         }
@@ -498,7 +288,7 @@ public class ExpectPartOne<A, E> {
         currentScope.intake(expect)
     }
 
-    public func toNot(_ matcher: AnyMatcher<A, E>) {
+    public func toNot(_ matcher: Matcher<A, E>) {
         guard let currentScope = TestScope.currentTestScope else {
             fatalError(I18n.t(.expectOutsideOfIt))
         }
@@ -507,7 +297,7 @@ public class ExpectPartOne<A, E> {
         currentScope.intake(expect)
     }
 
-    public func notTo(_ matcher: AnyMatcher<A, E>) {
+    public func notTo(_ matcher: Matcher<A, E>) {
         toNot(matcher)
     }
 }
