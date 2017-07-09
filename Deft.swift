@@ -1,76 +1,329 @@
 
-// Matcher Framework
+// MARK: - Matcher Framework
 
-public class Matcher<T> {
-    func execute(actual: T) -> Bool {
-        fatalError("This is a Base class. Must subclass to use")
+public protocol Matcher {
+    associatedtype Actual
+    associatedtype Expected
+
+    func execute(actual: Actual) -> Bool
+}
+
+private class _AnyMatcherBoxInterface<A, E>: Matcher {
+    public typealias Actual = A
+    public typealias Expected = E
+
+    func execute(actual: Actual) -> Bool {
+        fatalError("abstract class")
     }
 }
 
-// - Default Matchers
+private class _AnyMatcherBox<T: Matcher>: _AnyMatcherBoxInterface<T.Actual, T.Expected> {
+    let concrete: T
 
-class EqualMatcher<T: Equatable>: Matcher<T> {
-    let expected: T
+    init(concrete: T) {
+        self.concrete = concrete
+    }
 
-    init(expected: T) {
+    override func execute(actual: T.Actual) -> Bool {
+        return concrete.execute(actual: actual)
+    }
+}
+
+public class AnyMatcher<A, E>: Matcher {
+    public typealias Actual = A
+    public typealias Expected = E
+
+    private let box: _AnyMatcherBoxInterface<Actual, Expected>
+
+    init<T: Matcher>(matcher: T) where T.Actual == A, T.Expected == E {
+        self.box = _AnyMatcherBox(concrete: matcher)
+    }
+
+    public func execute(actual: A) -> Bool {
+        return box.execute(actual: actual)
+    }
+}
+
+// MARK: - Default Matchers
+
+public struct Closure<R> {
+    let closure: () -> R
+
+    public init(_ closure: @escaping () -> R) {
+        self.closure = closure
+    }
+
+    func execute() -> R {
+        return closure()
+    }
+}
+
+public struct ThrowingClosure<R> {
+    let closure: () throws -> R
+
+    public init(_ closure: @escaping () throws -> R) {
+        self.closure = closure
+    }
+
+    func execute() throws -> R {
+        return try closure()
+    }
+}
+
+class EqualMatcher<T: Equatable>: Matcher {
+    public typealias Actual = T?
+    public typealias Expected = T
+
+    let expected: Expected
+
+    init(expected: Expected) {
         self.expected = expected
     }
 
-    override func execute(actual: T) -> Bool {
+    public func execute(actual: Actual) -> Bool {
         return actual == expected
     }
 }
 
-public protocol BoolType {}
+public protocol BoolType {
+    var toBool: Bool { get }
+}
+extension BoolType {
+    public var toBool: Bool { return self as! Bool }
+}
 extension Bool: BoolType {}
 
-class BeTrueMatcher<T: BoolType>: Matcher<T> {
-    override func execute(actual: T) -> Bool {
-        return (actual as! Bool)
+class BeTrueMatcher<T: BoolType>: Matcher {
+    typealias Actual = T
+    typealias Expected = Void
+
+    func execute(actual: T) -> Bool {
+        return actual.toBool
     }
 }
 
-class BeFalseMatcher<T: BoolType>: Matcher<T> {
-    override func execute(actual: T) -> Bool {
-        return !(actual as! Bool)
+class BeFalseMatcher<T: BoolType>: Matcher {
+    typealias Actual = T
+    typealias Expected = Void
+
+    func execute(actual: T) -> Bool {
+        return !actual.toBool
     }
 }
 
-protocol BlockType {}
-struct Block: BlockType {
-    let held: () -> Void
+public protocol OptionalType {
+    associatedtype WrappedType
+    var toOptional: WrappedType? { get }
+}
+extension OptionalType {
+    public var toOptional: WrappedType? { return self as? WrappedType }
+}
+extension Optional: OptionalType {
+    public typealias WrappedType = Wrapped
+}
 
-    init(_ held: @escaping () -> Void) {
-        self.held = held
+class BeNilMatcher<T: OptionalType>: Matcher {
+    public typealias Actual = T
+    public typealias Expected = Void
+
+    public func execute(actual: Actual) -> Bool {
+        return actual.toOptional == nil
     }
 }
-class LogTrackerMatcher<T: BlockType>: Matcher<T> {
-    override func execute(actual: T) -> Bool {
-        (actual as! Block).held()
+
+class BeMatcher<T: AnyObject>: Matcher {
+    public typealias Actual = T
+    public typealias Expected = T
+
+    let expected: Expected
+
+    init(expected: Expected) {
+        self.expected = expected
+    }
+
+    func execute(actual: Actual) -> Bool {
+        return actual === expected
+    }
+}
+
+public protocol DoubleConvertable {
+    var toDouble: Double { get }
+}
+extension Double: DoubleConvertable {
+    public var toDouble: Double { return Double(self) }
+}
+extension Float: DoubleConvertable {
+    public var toDouble: Double { return Double(self) }
+}
+class BeCloseToMatcher<T: DoubleConvertable>: Matcher {
+    public typealias Actual = T
+    public typealias Expected = T
+
+    let expected: Expected
+    let maxDelta: Double
+
+    init(expected: Expected, maxDelta: Double) {
+        self.expected = expected
+        self.maxDelta = maxDelta
+    }
+
+    func execute(actual: Actual) -> Bool {
+        return abs(actual.toDouble - expected.toDouble) <= maxDelta
+    }
+}
+
+class PassComparisonMatcher<T: Comparable>: Matcher {
+    public typealias Actual = T
+    public typealias Expected = T
+
+    let expected: Expected
+    let operation: (T, T) -> Bool
+
+    init(operation: @escaping (T, T) -> Bool, expected: Expected) {
+        self.expected = expected
+        self.operation = operation
+    }
+
+    func execute(actual: Actual) -> Bool {
+        return operation(actual, expected)
+    }
+}
+
+class HaveCountMatcher<C: Collection, IdxDist>: Matcher where C.IndexDistance == IdxDist {
+    public typealias Actual = C
+    public typealias Expected = IdxDist
+
+    let expected: Expected
+
+    init(expected: Expected) {
+        self.expected = expected
+    }
+
+    public func execute(actual: Actual) -> Bool {
+        return actual.count == expected
+    }
+}
+
+class ThrowErrorMatcher: Matcher {
+    public typealias Actual = ThrowingClosure<Void>
+    public typealias Expected = Void
+
+    let errorVerifier: ((Error) -> Bool)?
+
+    init(errorVerifier: ((Error) -> Bool)?) {
+        self.errorVerifier = errorVerifier
+    }
+
+    func execute(actual: Actual) -> Bool {
+        do {
+            try actual.execute()
+        } catch let error {
+            if let errorVerifier = errorVerifier {
+                return errorVerifier(error)
+            }
+
+            return true
+        }
+
+        return false
+    }
+}
+
+class ThrowEquatableErrorMatcher<T: Error & Equatable>: Matcher {
+    public typealias Actual = ThrowingClosure<Void>
+    public typealias Expected = T
+
+    let expectedError: Expected
+
+    init(expectedError: Expected) {
+        self.expectedError = expectedError
+    }
+
+    func execute(actual: Actual) -> Bool {
+        do {
+            try actual.execute()
+        } catch let error {
+            if let error = error as? T {
+                return error == expectedError
+            }
+
+            return false
+        }
+
+        return false
+    }
+}
+
+class SucceedMatcher: Matcher {
+    public typealias Actual = Closure<Bool>
+    public typealias Expected = Void
+
+    func execute(actual: Actual) -> Bool {
+        return actual.execute()
+    }
+}
+
+class LogTrackerMatcher: Matcher {
+    public typealias Actual = Closure<Void>
+    public typealias Expected = Void
+
+    func execute(actual: Actual) -> Bool {
+        actual.execute()
         return true
     }
 }
 
-// - Global Matcher Functions
+// MARK: - Public Matcher Functions
 
-public func equal<T: Equatable>(_ expected: T) -> Matcher<T> {
-    return EqualMatcher(expected: expected)
+public func equal<T: Equatable>(_ expected: T) -> AnyMatcher<T?, T> {
+    return AnyMatcher(matcher: EqualMatcher(expected: expected))
 }
 
-public func beTrue<T: BoolType>() -> Matcher<T> {
-    return BeTrueMatcher()
+public func beTrue<T: BoolType>() -> AnyMatcher<T, Void> {
+    return AnyMatcher(matcher: BeTrueMatcher())
 }
 
-public func beFalse<T: BoolType>() -> Matcher<T> {
-    return BeFalseMatcher()
+public func beFalse<T: BoolType>() -> AnyMatcher<T, Void> {
+    return AnyMatcher(matcher: BeFalseMatcher())
 }
 
-func log<T: BlockType>() -> Matcher<T> {
-    return LogTrackerMatcher()
+public func beNil<T: OptionalType>() -> AnyMatcher<T, Void> {
+    return AnyMatcher(matcher: BeNilMatcher())
 }
 
+public func be<T: AnyObject>(_ expected: T) -> AnyMatcher<T, T> {
+    return AnyMatcher(matcher: BeMatcher(expected: expected))
+}
 
-// BDD Framework
+public func beCloseTo<T: DoubleConvertable>(_ expected: T, maxDelta: Double = 0.0001) -> AnyMatcher<T, T> {
+    return AnyMatcher(matcher: BeCloseToMatcher(expected: expected, maxDelta: maxDelta))
+}
+
+public func passComparison<T: Comparable>(_ operation: @escaping (T, T) -> Bool, _ expected: T) -> AnyMatcher<T, T> {
+    return AnyMatcher(matcher: PassComparisonMatcher(operation: operation, expected: expected))
+}
+
+public func haveCount<C: Collection, IdxDist>(_ expected: IdxDist) -> AnyMatcher<C, IdxDist> where C.IndexDistance == IdxDist {
+    return AnyMatcher(matcher: HaveCountMatcher(expected: expected))
+}
+
+public func throwError(errorVerifier: ((Error) -> Bool)? = nil) -> AnyMatcher<ThrowingClosure<Void>, Void> {
+    return AnyMatcher(matcher: ThrowErrorMatcher(errorVerifier: errorVerifier))
+}
+
+public func throwError<T: Error & Equatable>(error: T) -> AnyMatcher<ThrowingClosure<Void>, T> {
+    return AnyMatcher(matcher: ThrowEquatableErrorMatcher(expectedError: error))
+}
+
+public func succeed() -> AnyMatcher<Closure<Bool>, Void> {
+    return AnyMatcher(matcher: SucceedMatcher())
+}
+
+public func log() -> AnyMatcher<Closure<Void>, Void> {
+    return AnyMatcher(matcher: LogTrackerMatcher())
+}
+
+// MARK: - TDD Framework
 
 private struct Constant {
     static let levelSpace = "   "
@@ -105,6 +358,7 @@ private struct I18n {
         case notAllowedInIt(String)
         case lineOutput(text: String, level: Int, firstCharacter: String)
         case endLine(totalCount: Int, succeeded: Int, pending: Int)
+        case failureOutputLine(failureLines: [Int])
     }
 
     static func t(_ key: Key) -> String {
@@ -127,10 +381,13 @@ private struct I18n {
         case .endLine(let totalCount, let succeeded, let pending):
             let testText = totalCount == 1 ? "test" : "tests"
             return "\n Executed \(totalCount) \(testText)\n  |- \(succeeded) succeeded\n  |- \(totalCount - succeeded - pending) failed\n  |- \(pending) pending\n\n"
+        case .failureOutputLine(let failureLines):
+            guard !failureLines.isEmpty else { return "" }
+            let linesString = failureLines.count == 1 ? "line" : "lines"
+            return "\n Failed on " + linesString + ": [" + failureLines.map{"\($0)"}.joined(separator: ", ") + "]\n"
         }
     }
 }
-
 
 private protocol TrackedScope {
     func add(_ scope: Scope)
@@ -166,35 +423,38 @@ private enum Mark {
     case pending
 }
 
-
 private class TestResult {
     let description: String
     let total: Int
     let succeeded: Int
     let pending: Int
+    let failureLines: [Int]
 
-    init(description: String = "", total: Int = 0, succeeded: Int = 0, pending: Int = 0) {
+    init(description: String = "", total: Int = 0, succeeded: Int = 0, pending: Int = 0, failureLines: [Int] = []) {
         self.description = description
         self.total = total
         self.succeeded = succeeded
         self.pending = pending
+        self.failureLines = failureLines
     }
 
     static func + (lhs: TestResult, rhs: TestResult) -> TestResult {
         return TestResult(description: lhs.description + rhs.description,
                           total: lhs.total + rhs.total,
                           succeeded: lhs.succeeded + rhs.succeeded,
-                          pending: lhs.pending + rhs.pending)
+                          pending: lhs.pending + rhs.pending,
+                          failureLines: lhs.failureLines + rhs.failureLines)
     }
 }
 
-
 private class Expect {
     private let captured: () -> Bool
+    private let line: Int
     private let negativeTest: Bool
 
-    init<T>(actual: T, matcher: Matcher<T>, negativeTest: Bool) {
+    init<A, E>(actual: A, matcher: AnyMatcher<A, E>, line: Int, negativeTest: Bool) {
         self.captured = { matcher.execute(actual: actual) }
+        self.line = line
         self.negativeTest = negativeTest
     }
 
@@ -203,37 +463,51 @@ private class Expect {
         return result && !negativeTest || !result && negativeTest
     }
 
-    static func execute(_ expects: [Expect]) -> Bool {
-        return expects.reduce(true) { $0 && $1.execute() }
+    static func execute(_ expects: [Expect]) -> (Bool, [Int]) {
+        var failedLines = [Int]()
+        var allSucceeded = true
+
+        for expect in expects {
+            let success = expect.execute()
+
+            if !success {
+                failedLines.append(expect.line)
+                allSucceeded = false
+            }
+        }
+
+        return (allSucceeded, failedLines)
     }
 }
 
-public class ExpectPartOne<T> {
-    let actual: T
+public class ExpectPartOne<A, E> {
+    let actual: A
+    let line: Int
 
-    init(actual: T) {
+    init(actual: A, line: Int) {
         self.actual = actual
+        self.line = line
     }
 
-    public func to(_ matcher: Matcher<T>) {
+    public func to(_ matcher: AnyMatcher<A, E>) {
         guard let currentScope = TestScope.currentTestScope else {
             fatalError(I18n.t(.expectOutsideOfIt))
         }
 
-        let expect = Expect(actual: actual, matcher: matcher, negativeTest: false)
+        let expect = Expect(actual: actual, matcher: matcher, line: line, negativeTest: false)
         currentScope.intake(expect)
     }
 
-    public func toNot(_ matcher: Matcher<T>) {
+    public func toNot(_ matcher: AnyMatcher<A, E>) {
         guard let currentScope = TestScope.currentTestScope else {
             fatalError(I18n.t(.expectOutsideOfIt))
         }
 
-        let expect = Expect(actual: actual, matcher: matcher, negativeTest: true)
+        let expect = Expect(actual: actual, matcher: matcher, line: line, negativeTest: true)
         currentScope.intake(expect)
     }
 
-    public func notTo(_ matcher: Matcher<T>) {
+    public func notTo(_ matcher: AnyMatcher<A, E>) {
         toNot(matcher)
     }
 }
@@ -282,7 +556,7 @@ private class It {
         expects.append(expect)
     }
 
-    // MARK: Helper
+    // MARK: - Private
 
     private func shouldExecute(isSomethingFocused: Bool) -> Bool {
         if actingPending {
@@ -306,7 +580,7 @@ private class It {
         }
     }
 
-    // MARK: Helper
+    // MARK: - Private Static
 
     private static func executeGroup(_ its: [It], level: Int, steps: [Step], isSomethingFocused: Bool) -> TestResult {
         let hasTestsToRun = its.reduce(false) { $0 || $1.shouldExecute(isSomethingFocused: isSomethingFocused) }
@@ -338,10 +612,10 @@ private class It {
                 return $0 + TestResult(description: testDescription, total: 1, pending: 1)
             }
 
-            let success = Expect.execute($1.expects)
+            let (success, failureLines) = Expect.execute($1.expects)
             let outcomeSymbol = success ? Constant.SingleCharacter.success : Constant.SingleCharacter.failure
             let testDescription = I18n.t(.lineOutput(text: $1.displayableTitle, level: level, firstCharacter: outcomeSymbol))
-            return $0 + TestResult(description: testDescription, total: 1, succeeded: success ? 1 : 0)
+            return $0 + TestResult(description: testDescription, total: 1, succeeded: success ? 1 : 0, failureLines: failureLines)
         }
 
         afterEachs.reversed().forEach { $0.closure() }
@@ -439,7 +713,7 @@ private class Scope: TrackedScope {
         subScopes.append(scope)
     }
 
-    // MARK: static
+    // MARK: - Static
 
     static func execute(_ scopes: [Scope], isSomethingFocused: Bool, level: Int = 0, accumulatedSteps: [Step] = []) -> TestResult {
         return scopes.reduce(TestResult()) {
@@ -453,7 +727,6 @@ private class Scope: TrackedScope {
         }
     }
 }
-
 
 private class Tracker {
     var scopes: [TrackedScope]
@@ -543,12 +816,13 @@ private class TestScope: TrackedScope {
         isExecuting = true
         rootScope.process(underFocus: false, underPending: false)
         let result = Scope.execute([rootScope], isSomethingFocused: rootScope.hasActiveFocus)
-        let endline = I18n.t(.endLine(totalCount: result.total, succeeded: result.succeeded, pending: result.pending))
-        print(result.description + endline)
+        let failureLine = I18n.t(.failureOutputLine(failureLines: result.failureLines))
+        let endLine = I18n.t(.endLine(totalCount: result.total, succeeded: result.succeeded, pending: result.pending))
+        print(result.description + failureLine + endLine)
         isExecuting = false
     }
 
-    // MARK: Helper
+    // MARK: - Private
 
     private func ensureNotExecuting() {
         guard !isExecuting else {
@@ -571,8 +845,7 @@ private class TestScope: TrackedScope {
     }
 }
 
-
-// MARK: Scopes
+// MARK: - Scopes
 
 public func describe(_ title: String, _ closure: () -> Void) {
     intakeScope(type: .describe, title, closure, mark: .none)
@@ -622,7 +895,7 @@ public func xit(_ title: String, _ closure: @escaping () -> Void) {
     intakeIt(title, closure: closure, mark: .pending)
 }
 
-// MARK: Steps
+// MARK: - Steps
 
 public func beforeEach(_ closure: @escaping () -> Void) {
     intakeStep(type: .beforeEach, closure: closure)
@@ -636,14 +909,13 @@ public func afterEach(_ closure: @escaping () -> Void) {
     intakeStep(type: .afterEach, closure: closure)
 }
 
-// MARK: Expect
+// MARK: - Expect
 
-public func expect<T>(_ actual: T) -> ExpectPartOne<T> {
-    return ExpectPartOne(actual: actual)
+public func expect<A, E>(_ actual: A, line: Int = #line) -> ExpectPartOne<A, E> {
+    return ExpectPartOne(actual: actual, line: line)
 }
 
-
-// Helpers
+// MARK: - Private
 
 private func intakeScope(type: ScopeType, _ title: String, _ closure: () -> Void, mark: Mark) {
     if let testScope = TestScope.currentTestScope {
@@ -674,96 +946,3 @@ private func newTest(title: String, closure: () -> Void, mark: Mark) {
     testScope.execute()
     TestScope.currentTestScope = nil
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-var timingLogs: [String] = []
-
-
-describe("a class") {
-    context("when stuff happens") {
-        describe("the shape of the stuff") {
-            subjectAction {
-
-            }
-
-            it("should be true") {
-                expect(true).to(beTrue())
-                expect(45).to(equal(45))
-
-            }
-
-            it("should be false") {
-                expect(true).to(beFalse())
-            }
-
-            it("should equate") {
-                expect(45).to(equal(45))
-            }
-        }
-
-        context("when that stuff is brown") {
-            beforeEach {
-                timingLogs.append("before each")
-            }
-
-            afterEach {
-                timingLogs.append("after each")
-            }
-
-            it("should 1") {
-                expect(Block { timingLogs.append("should 1") }).to(log())
-            }
-
-            group {
-                it("should 2") {
-                    expect(Block { timingLogs.append("should 2") }).to(log())
-                }
-
-                it("should 3") {
-                    expect(Block { timingLogs.append("should 3") }).to(log())
-                }
-                
-                it("should 4") {
-                    expect(Block { timingLogs.append("should 4") }).to(log())
-                }
-            }
-        }
-        
-        context("when that stuff is gray") {
-            it("should do stuff") {
-                expect(true).to(beTrue())
-            }
-        }
-    }
-}
-
-
-context("next thing") {
-    xdescribe("next thing to check") {
-        
-    }
-}
-
-timingLogs.forEach { print($0) }
-
-
-
-
-
-
-print("\n  ** EOF **")
