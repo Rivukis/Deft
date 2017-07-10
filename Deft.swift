@@ -68,6 +68,24 @@ public func haveCount<C: Collection, IdxDist>(_ expected: IdxDist) -> Matcher<C,
     }
 }
 
+public func haveCount(_ expected: Int) -> Matcher<String, Int> {
+    return Matcher { actual in
+        return actual.characters.count == expected
+    }
+}
+
+public func beEmpty<C: Collection>() -> Matcher<C, Void> {
+    return Matcher { actual in
+        return actual.count == 0
+    }
+}
+
+public func beEmpty() -> Matcher<String, Void> {
+    return Matcher { actual in
+        return actual.isEmpty
+    }
+}
+
 public func throwError(errorVerifier: ((Error) -> Bool)? = nil) -> Matcher<() throws -> Void, Void> {
     return Matcher { actual in
         do {
