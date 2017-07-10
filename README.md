@@ -206,6 +206,7 @@ expect(actualArray).to(haveCount(5))
 - beEmpty - passes if actual has a count of 0 (works with Collection types and Strings)
 - throwError - passes if the wrapped function throws an error (can use a validator function for the error or can equate the error if Equatable)
 - succeed - passes if the function returns true (used for custom testing)
+- log - debugging matcher that allows you to execute code (mainly print statements) at the time `expect().to()`s are validated.
 
 ### Custom Matchers
 
