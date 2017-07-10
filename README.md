@@ -13,6 +13,7 @@ Are you building something complicated enough that you might write a bug when im
 - Initiate testing using the `describe()` function
 - Add describe scopes using `describe()`
 - Add context scopes using `context()`
+- Add group scopes using `group()`
 - Add it scopes using `it()`
 - Add test setup using `beforeEach()`
 - Add tear down code using `afterEach()`
