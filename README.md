@@ -19,8 +19,8 @@ Are you building something complicated enough that you might write a bug when im
 - Add tear down code using `afterEach()`
 - Add an action for all the tests using `subjectAction()`
 - Add expectations in 'it' scopes using `expect().to()`
-- Focus test(s) by adding 'f' in front of describes, contexts, and/or its (i.e. `fdescribe()`, `fcontext()`, `fit()`)
-- Mark test(s) as pending by adding 'x' in front of describes, contexts, and/or its (i.e. `xdescribe()`, `xcontext()`, `xit()`)
+- Focus test(s) by adding 'f' in front of describes, contexts, groups, and/or its (i.e. `fdescribe()`, `fcontext()`, `fgroup()`, `fit()`)
+- Mark test(s) as pending by adding 'x' in front of describes, contexts, groups, and/or its (i.e. `xdescribe()`, `xcontext()`, `xgroup()`, `xit()`)
 - Run the playground and see the results in the console window (to view the console window use the shortcut: ⌘⇧Y)
 
 ## Example using Deft
