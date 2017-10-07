@@ -219,6 +219,43 @@ public func haveCount(_ expectedCount: Int) -> Matcher<String, Int> {
 }
 
 /**
+ Contain Matcher
+
+ Validates that the `Collection` contains the expected value.
+
+ ## Example ##
+ ```swift
+ expect([1, 2, 3]).to(contain(2))
+ ```
+ 
+ - Parameter expectedValue: The expected value
+ */
+public func contain<T: Equatable>(_ expectedValue: T) -> Matcher<[T], T> {
+    return Matcher { actual in
+        return actual.contains(expectedValue)
+    }
+}
+
+/**
+ Contain Matcher
+
+ Validates that the `Collection` contains an element that satisfies the predicate.
+
+ ## Example ##
+ ```swift
+ let person = Person(age: 21)
+ expect([person]).to(contain { $0.age == 21 })
+ ```
+ 
+ - Parameter predicate: the closure used to determine in an element satisfies the predicate
+ */
+public func contain<T>(where predicate: @escaping (T) -> Bool) -> Matcher<[T], T> {
+    return Matcher { actual in
+        return actual.contains(where: predicate)
+    }
+}
+
+/**
  Be Empty Matcher
 
  Validates that the `Collection` has a count of 0.
