@@ -1002,6 +1002,23 @@ public func xdescribe(_ title: String, _ closure: () -> Void) {
 }
 
 /**
+ Adds an ignored describe scope.
+ This is used to make a set of tests not run at all.
+
+ Describe scopes are normally used to encompass the subject under test or a specific behavior of the subject under test.
+
+ - Warning: Tests within this `idescribe()` will not exist during execution.
+ - Note: This has the same function signature as `describe()` for ease of use.
+
+ - Parameter title: The `describe`'s title that is included in the test output.
+ - Parameter closure: The `describe` scope to be executed during testing.
+ */
+public func idescribe(_ title: String, _ closure: () -> Void) {
+    print(" WARNING - I-Describe: \(title)")
+    // do nothing
+}
+
+/**
  Adds a context scope.
 
  Context scopes are normally used to encompass a scenario that the subject under test or a specific behavior of the subject under test has to account for.
@@ -1041,6 +1058,23 @@ public func fcontext(_ title: String, _ closure: () -> Void) {
  */
 public func xcontext(_ title: String, _ closure: () -> Void) {
     intakeScope(type: .context, title, closure, mark: .pending)
+}
+
+/**
+ Adds an ignored context scope.
+ This is used to make a set of tests not run at all.
+
+ Context scopes are normally used to encompass a scenario that the subject under test or a specific behavior of the subject under test has to account for.
+
+ - Warning: Tests within this `icontext()` will not exist during execution.
+ - Note: This has the same function signature as `context()` for ease of use.
+
+ - Parameter title: The `context`'s title that is included in the test output.
+ - Parameter closure: The `context` scope to be executed during testing.
+ */
+public func icontext(_ title: String, _ closure: () -> Void) {
+    print(" WARNING - I-Context: \(title)")
+    // do nothing
 }
 
 /**
@@ -1090,6 +1124,24 @@ public func xgroup(_ title: String = "", _ closure: () -> Void) {
 }
 
 /**
+ Adds an ignored group scope.
+ This is used to make a set of tests not run at all.
+
+ Normally all `beforeEach` scopes for a specific `it` scope are ran then all `afterEach` scopes after that specific `it` scope. The same is repeated for all subsequent `it` scopes. Group scopes, however, will run all `beforeEach` scopes then all encompassing `it` scopes then all `afterEach` scopes. This is to cut down on performace heavy test setups and teardowns.
+
+ - Important: group scopes should generally only be used for performance purposes.
+ - Warning: Tests within this `igroup()` will not exist during execution.
+ - Note: This has the same function signature as `group()` for ease of use.
+
+ - Parameter title: The `group`'s title that is included in the test output. Defaults to ""
+ - Parameter closure: The `group` scope to be executed during testing. Only `expect().to()`s should be captured in this scope
+ */
+public func igroup(_ title: String, _ closure: () -> Void) {
+    print(" WARNING - I-Group: \(title)")
+    // do nothing
+}
+
+/**
  Adds an it scope.
 
  It scopes are used to encompass expectations. It scopes will only report a passing test if all expectations pass validation.
@@ -1129,6 +1181,23 @@ public func fit(_ title: String, _ closure: @escaping () -> Void) {
  */
 public func xit(_ title: String, _ closure: @escaping () -> Void) {
     intakeIt(title, closure: closure, mark: .pending)
+}
+
+/**
+ Adds an ignored it scope.
+ This is used to make a set of tests not run at all.
+
+ It scopes are used to encompass expectations. It scopes will only report a passing test if all expectations pass validation.
+
+ - Warning: Tests within this `iit()` will not exist during execution.
+ - Note: This has the same function signature as `xit()` for ease of use.
+
+ - Parameter title: The `it`'s title that is included in the test output.
+ - Parameter closure: The `it` scope to be executed during testing. Only `expect().to()`s should be captured in this scope
+ */
+public func iit(_ title: String, _ closure: () -> Void) {
+    print(" WARNING - I-It: \(title)")
+    // do nothing
 }
 
 // MARK: - Steps
