@@ -10,18 +10,19 @@ Are you building something complicated enough that you might write a bug when im
 
 ## Abilities
 
-- Initiate testing using the `describe()` function
-- Add describe scopes using `describe()`
-- Add context scopes using `context()`
-- Add group scopes using `group()`
-- Add it scopes using `it()`
-- Add test setup using `beforeEach()`
-- Add tear down code using `afterEach()`
-- Add an action for all the tests using `subjectAction()`
-- Add expectations in 'it' scopes using `expect().to()`
-- Focus test(s) by adding 'f' in front of describes, contexts, groups, and/or its (i.e. `fdescribe()`, `fcontext()`, `fgroup()`, `fit()`)
-- Mark test(s) as pending by adding 'x' in front of describes, contexts, groups, and/or its (i.e. `xdescribe()`, `xcontext()`, `xgroup()`, `xit()`)
-- Run the playground and see the results in the console window (to view the console window use the shortcut: ⌘⇧Y)
+* Initiate testing using the `describe()` function
+* Add describe scopes using `describe()`
+* Add context scopes using `context()`
+* Add group scopes using `group()`
+* Add it scopes using `it()`
+* Add test setup using `beforeEach()`
+* Add tear down code using `afterEach()`
+* Add an action for all the tests using `subjectAction()`
+* Add expectations in 'it' scopes using `expect().to()`
+* Focus scope(s) by adding 'f' in front of describes, contexts, groups, and/or its (i.e. `fdescribe()`, `fcontext()`, `fgroup()`, `fit()`)
+* Mark scope(s) as pending by adding 'x' in front of describes, contexts, groups, and/or its (i.e. `xdescribe()`, `xcontext()`, `xgroup()`, `xit()`)
+* Mark scope(s) as ignored by adding 'i' in front of describes, contexts, groups, and/or its (i.e. `idescribe()`, `icontext()`, `igroup()`, `iit()`)
+* Run the playground and see the results in the console window (to view the console window use the shortcut: ⌘⇧Y)
 
 ## Example using Deft
 
@@ -154,7 +155,7 @@ describe("DataService") {
 
 ### Example Console Output
 
-```
+```txt
  Test: DataService
     Describe: getting data
        Context: when data gets returned
@@ -196,18 +197,18 @@ expect(actualArray).to(haveCount(5))
 
 ### Built-in Matchers
 
-- equal - passes if actual is equal to expected
-- beTrue - passes if actual is true
-- beFalse - passes if actual is false
-- beNil - passes if actual is nil
-- be - passes if actual identical to expected
-- beCloseTo - passes if actual is within 0.0001 of expected
-- passComparison - passes if the comparison function returns true when actual and expected passed in
-- haveCount - passes if actual has a count of expected (works with Collection types and Strings)
-- beEmpty - passes if actual has a count of 0 (works with Collection types and Strings)
-- throwError - passes if the wrapped function throws an error (can use a validator function for the error or can equate the error if Equatable)
-- succeed - passes if the function returns true (used for custom testing)
-- log - debugging matcher that allows you to execute code (mainly print statements) at the time `expect().to()`s are validated.
+* equal - passes if actual is equal to expected
+* beTrue - passes if actual is true
+* beFalse - passes if actual is false
+* beNil - passes if actual is nil
+* be - passes if actual identical to expected
+* beCloseTo - passes if actual is within 0.0001 of expected
+* passComparison - passes if the comparison function returns true when actual and expected passed in
+* haveCount - passes if actual has a count of expected (works with Collection types and Strings)
+* beEmpty - passes if actual has a count of 0 (works with Collection types and Strings)
+* throwError - passes if the wrapped function throws an error (can use a validator function for the error or can equate the error if Equatable)
+* succeed - passes if the function returns true (used for custom testing)
+* log - debugging matcher that allows you to execute code (mainly print statements) at the time `expect().to()`s are validated.
 
 ### Custom Matchers
 
@@ -232,25 +233,27 @@ public func beEmpty() -> Matcher<String, Void> {
 ```
 
 ## Note
-- Playgrounds seem to work better if you turn off the auto run feature
-    - Turn off by moving the mouse over the little blue play button in the bottom left of the window, click and hold until a menu shows up, and choose "Manually Run"
-- If you have "Manually Run" turned on in the Xcode playground, I recommend adding a keyboard shortcut to "Run Playground"
-    - I found (^R) to be a good choice as it is the closest thing to (⌘R) without running into other shortcuts. Also Xcode doesn't allow you to use (⌘R).
+
+* Playgrounds seem to work better if you turn off the auto run feature
+  * Turn off by moving the mouse over the little blue play button in the bottom left of the window, click and hold until a menu shows up, and choose "Manually Run"
+* If you have "Manually Run" turned on in the Xcode playground, I recommend adding a keyboard shortcut to "Run Playground"
+  * I found (^R) to be a good choice as it is the closest thing to (⌘R) without running into other shortcuts. Also Xcode doesn't allow you to use (⌘R).
 
 ## Key
- - "." : Test succeeded
- - "F" : Test failed
- - ">" : Test marked as pending
+
+* "." : Test succeeded
+* "F" : Test failed
+* ">" : Test marked as pending
 
 ## Installation
 
-- Download the provided Deft.swift
-- Open an Xcode playground
-- Open the project navigator (COMMAND + 1)
-- Select the 'Sources' folder <-- This is required
-- 'Add files to "Sources"...' (CMA + OPT + A)
-- Find and "Add" 'Deft.swift'
-- Start Testing!
+* Download the provided Deft.swift
+* Open an Xcode playground
+* Open the project navigator (COMMAND + 1)
+* Select the 'Sources' folder <-- This is required
+* 'Add files to "Sources"...' (CMA + OPT + A)
+* Find and "Add" 'Deft.swift'
+* Start Testing!
 
 ## Contributors
 
